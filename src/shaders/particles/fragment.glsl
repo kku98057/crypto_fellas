@@ -12,6 +12,7 @@ varying float vScatterAmount;
 varying float vTextureIndex;
 varying float vRotationAngle;
 varying float vDistance;
+varying float vEdgeBrightness; // 외곽 밝기
 
 // 텍스처 샘플링 함수 (회전 적용)
 vec4 sampleTexture(sampler2D tex, vec2 uv, float angle) {
@@ -58,12 +59,20 @@ void main() {
   float distanceFade = 1.0 - smoothstep(50.0, 200.0, vDistance);
   alpha *= distanceFade;
   
+  // 외곽 밝기 효과 (외곽 부분이 더 밝게)
+  // 외곽(0.5에 가까울수록)일수록 더 밝게
+  float edgeGlow = smoothstep(0.3, 0.5, dist) * vEdgeBrightness;
+  float edgeBrightness = 1.0 + edgeGlow * (vEdgeBrightness - 1.0);
+  
   // 색상 스킴 적용 (위치 기반 그라데이션)
   float colorMix = (vPosition.y + 1.0) * 0.5; // -1 ~ 1을 0 ~ 1로 변환
   vec3 schemeColor = mix(uColor1, uColor2, colorMix);
   
   // 텍스처 색상과 색상 스킴 블렌딩
   vec3 finalColor = texColor.rgb * schemeColor;
+  
+  // 외곽 밝기 적용 (외곽 부분을 더 밝게)
+  finalColor *= edgeBrightness;
   
   // Scatter 효과 (벚꽃 흩어짐 시 색상 변화)
   if (vScatterAmount > 0.01) {

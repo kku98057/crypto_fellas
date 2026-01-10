@@ -16,31 +16,144 @@ import fragmentShader from "../../shaders/particles/fragment.glsl?raw";
 // import { morphTarget } from "../../utils/animationSequence";
 
 /**
- * GLTF 모델에서 파티클 위치를 추출하는 클래스
+ * 이름 기반 밀도 가중치 설정
+ * 이름에 따라 입자 밀도를 조정할 수 있습니다.
+ * 1.0 = 기본 밀도, 0.5 = 절반 밀도, 2.0 = 2배 밀도
+ */
+const NAME_DENSITY_WEIGHTS: Record<string, number> = {
+  // glass가 포함된 이름은 낮은 밀도
+  glass: 0.3,
+  // Circle이 포함된 이름은 높은 밀도
+  Circle: 1.5,
+  Circle002: 5,
+  Circle003: 1.5,
+  Circle004: 1.5,
+  // Cylinder는 기본 밀도
+  Cylinder: 1.0,
+  // Cube는 높은 밀도
+  Cube: 2.0,
+  Cube002: 2.0,
+  // 기본값
+  default: 1.0,
+};
+
+/**
+ * 이름에 따라 밀도 가중치를 가져오는 함수
+ */
+function getDensityWeight(name: string): number {
+  if (!name) return NAME_DENSITY_WEIGHTS.default;
+
+  // 정확한 이름 매칭 우선
+  if (NAME_DENSITY_WEIGHTS[name]) {
+    return NAME_DENSITY_WEIGHTS[name];
+  }
+
+  // 부분 매칭 (이름에 포함된 키워드 확인)
+  for (const [key, weight] of Object.entries(NAME_DENSITY_WEIGHTS)) {
+    if (key !== "default" && name.includes(key)) {
+      return weight;
+    }
+  }
+
+  return NAME_DENSITY_WEIGHTS.default;
+}
+
+/**
+ * 모델별 외곽 밝기 설정
+ * 각 모델마다 이름 기반 외곽 밝기를 설정할 수 있습니다.
+ * 기본값은 1.0입니다.
+ * 이름을 넣지 않으면 모든 child에 기본값이 적용됩니다.
+ */
+interface ModelEdgeBrightnessConfig {
+  default?: number; // 기본 외곽 밝기 (이름이 없거나 매칭되지 않을 때)
+  names?: Record<string, number>; // 이름별 외곽 밝기 설정
+}
+
+/**
+ * 이름에 따라 외곽 밝기를 가져오는 함수
+ * config가 없으면 기본값 1.0 반환
+ */
+function getEdgeBrightness(
+  name: string,
+  config?: ModelEdgeBrightnessConfig
+): number {
+  if (!config) return 1.0;
+
+  const defaultBrightness = config.default ?? 1.0;
+
+  // 이름이 없으면 기본값 반환
+  if (!name || !config.names) {
+    return defaultBrightness;
+  }
+
+  // 정확한 이름 매칭 우선
+  if (config.names[name] !== undefined) {
+    return config.names[name];
+  }
+
+  // 부분 매칭 (이름에 포함된 키워드 확인)
+  for (const [key, brightness] of Object.entries(config.names)) {
+    if (name.includes(key)) {
+      return brightness;
+    }
+  }
+
+  return defaultBrightness;
+}
+
+/**
+ * GLTF 모델에서 파티클 위치와 외곽 밝기를 추출하는 클래스
  */
 class CreateParticlePositions {
   gltf: { scene: THREE.Object3D };
   count: number;
+  edgeBrightnessConfig?: ModelEdgeBrightnessConfig;
 
-  constructor(gltf: { scene: THREE.Object3D }, count: number) {
+  constructor(
+    gltf: { scene: THREE.Object3D },
+    count: number,
+    edgeBrightnessConfig?: ModelEdgeBrightnessConfig
+  ) {
     this.gltf = gltf;
     this.count = count;
+    this.edgeBrightnessConfig = edgeBrightnessConfig;
   }
 
-  createParticles(): Float32Array {
-    const positions: THREE.Vector3[] = [];
+  createParticles(): {
+    positions: Float32Array;
+    edgeBrightness: Float32Array;
+  } {
+    interface VertexData {
+      position: THREE.Vector3;
+      edgeBrightness: number;
+    }
+
+    const vertices: VertexData[] = [];
     const tempVec = new THREE.Vector3();
 
-    // 모델의 모든 메시에서 vertex 위치 수집
+    // 모델의 모든 메시에서 vertex 위치 수집 (이름 기반 밀도 및 외곽 밝기 적용)
     this.gltf.scene.traverse((child) => {
-      console.log("////////////////////////////////////////");
+      /**
+       * Cylinder_TT_checker_1024x1024_UV_GRID_0
+       * Circle002_glass_0
+       * Circle003_TT_checker_1024x1024_UV_GRID_0
+       * Circle004_TT_checker_1024x1024_UV_GRID_0
+       * Cube002_TT_checker_1024x1024_UV_GRID_0
+       */
       if (child instanceof THREE.Mesh) {
         const geometry = child.geometry;
         if (geometry) {
-          console.log("name", child.name);
           // 위치 속성 가져오기
           const positionAttribute = geometry.attributes.position;
           if (positionAttribute) {
+            // 이름에 따른 밀도 가중치 및 외곽 밝기 가져오기
+            const meshName = child.name || "";
+            const densityWeight = getDensityWeight(meshName);
+            const edgeBrightness = getEdgeBrightness(
+              meshName,
+              this.edgeBrightnessConfig
+            );
+
             const matrix = new THREE.Matrix4();
             matrix.multiplyMatrices(
               this.gltf.scene.matrixWorld,
@@ -51,7 +164,49 @@ class CreateParticlePositions {
             for (let i = 0; i < positionAttribute.count; i++) {
               tempVec.fromBufferAttribute(positionAttribute, i);
               tempVec.applyMatrix4(matrix);
-              positions.push(tempVec.clone());
+
+              // 밀도 가중치에 따라 버텍스를 여러 번 추가
+              // 가중치가 1.0이면 1번, 2.0이면 평균 2번, 0.5이면 50% 확률로 추가
+              if (densityWeight >= 1.0) {
+                // 가중치가 1.0 이상이면 정수 부분만큼 확실히 추가하고, 소수 부분은 확률적으로 추가
+                const integerPart = Math.floor(densityWeight);
+                const fractionalPart = densityWeight - integerPart;
+
+                // 정수 부분만큼 확실히 추가
+                for (let j = 0; j < integerPart; j++) {
+                  vertices.push({
+                    position: tempVec.clone(),
+                    edgeBrightness,
+                  });
+                }
+
+                // 소수 부분은 확률적으로 추가
+                if (Math.random() < fractionalPart) {
+                  vertices.push({
+                    position: tempVec.clone(),
+                    edgeBrightness,
+                  });
+                }
+              } else {
+                // 가중치가 1.0 미만이면 확률적으로 추가
+                if (Math.random() < densityWeight) {
+                  vertices.push({
+                    position: tempVec.clone(),
+                    edgeBrightness,
+                  });
+                }
+              }
+            }
+
+            // 디버그 정보 출력
+            if (import.meta.env.DEV && meshName) {
+              console.log(
+                `Mesh "${meshName}": ${
+                  positionAttribute.count
+                } vertices, 밀도 가중치: ${densityWeight.toFixed(
+                  2
+                )}, 외곽 밝기: ${edgeBrightness.toFixed(2)}`
+              );
             }
           }
         }
@@ -59,30 +214,36 @@ class CreateParticlePositions {
     });
 
     // 충분한 파티클이 없으면 보간하여 생성
-    if (positions.length === 0) {
+    if (vertices.length === 0) {
       console.warn("모델에서 vertex를 찾을 수 없습니다. 기본 형태 사용");
-      return new Float32Array(this.count * 3);
+      const defaultBrightness = this.edgeBrightnessConfig?.default ?? 1.0;
+      return {
+        positions: new Float32Array(this.count * 3),
+        edgeBrightness: new Float32Array(this.count).fill(defaultBrightness),
+      };
     }
 
     // 요청된 개수만큼 파티클 선택 (균등 분포)
-    const result = new Float32Array(this.count * 3);
-    const step = Math.max(1, Math.floor(positions.length / this.count));
+    const positions = new Float32Array(this.count * 3);
+    const edgeBrightness = new Float32Array(this.count);
+    const step = Math.max(1, Math.floor(vertices.length / this.count));
 
     for (let i = 0; i < this.count; i++) {
       const index = Math.min(
         Math.floor(i * step) + Math.floor(Math.random() * step),
-        positions.length - 1
+        vertices.length - 1
       );
-      const pos = positions[index];
-      result[i * 3] = pos.x;
-      result[i * 3 + 1] = pos.y;
-      result[i * 3 + 2] = pos.z;
+      const vertex = vertices[index];
+      positions[i * 3] = vertex.position.x;
+      positions[i * 3 + 1] = vertex.position.y;
+      positions[i * 3 + 2] = vertex.position.z;
+      edgeBrightness[i] = vertex.edgeBrightness;
     }
 
     console.log(
-      `모델에서 ${positions.length}개 vertex 중 ${this.count}개 파티클 생성`
+      `모델에서 ${vertices.length}개 vertex (이름 기반 밀도 적용) 중 ${this.count}개 파티클 생성`
     );
-    return result;
+    return { positions, edgeBrightness };
   }
 }
 
@@ -265,7 +426,7 @@ export default function ParticleSystem({
     return new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        u_scale: { value: 0.6 },
+        u_scale: { value: 0.3 },
         u_opacity: { value: 1 },
         u_morphTargetInfluences: { value: [0, 0, 0, 0] },
         uMorphProgress: { value: 0 },
@@ -384,7 +545,7 @@ export default function ParticleSystem({
       try {
         // 모델 로딩 시도 (실패 시 기본 형태 사용)
         const modelPaths = [
-          "/object/model_4.glb", // rocket 모델
+          "/object/model_1.glb", // rocket 모델
           "/object/model_2.glb", // saturn 모델
           "/object/model_3.glb", // telephone 모델
         ];
@@ -447,43 +608,108 @@ export default function ParticleSystem({
           }
         });
 
+        // 모델별 외곽 밝기 설정
+        // 이름을 넣지 않으면 모든 child에 기본값(1.0)이 적용됩니다
+        const modelEdgeBrightnessConfigs: (
+          | ModelEdgeBrightnessConfig
+          | undefined
+        )[] = [
+          undefined,
+
+          // Rocket 모델 외곽 밝기 설정
+          // {
+          //   default: 2.0, // 기본 외곽 밝기 (이름이 없거나 매칭되지 않을 때)
+          //   names: {
+          //     glass: 3.0, // glass가 포함된 이름은 더 밝게
+          //     Circle: 2.5,
+          //     Circle002: 3.0,
+          //     Circle003: 2.5,
+          //     Circle004: 2.5,
+          //     Cylinder: 1.8,
+          //     Cube: 2.2,
+          //     Cube002: 2.2,
+          //   },
+          // },
+          // Saturn 모델 외곽 밝기 설정 (선택사항)
+          undefined, // 기본값 1.0 적용
+          // Telephone 모델 외곽 밝기 설정 (선택사항)
+          undefined, // 기본값 1.0 적용
+        ];
+
         // 파티클 생성 (모델이 없으면 기본 형태 사용)
-        const particleCount = 3000;
+        const particleCount = 8000;
         const shapeSize = 10; // 기본 형태도 동일한 크기로
 
-        let rocketPositions = rocket
-          ? new CreateParticlePositions(rocket, particleCount).createParticles()
-          : generateSphere(particleCount, shapeSize);
+        // Rocket 모델 파티클 생성
+        const rocketData = rocket
+          ? new CreateParticlePositions(
+              rocket,
+              particleCount,
+              modelEdgeBrightnessConfigs[0]
+            ).createParticles()
+          : {
+              positions: generateSphere(particleCount, shapeSize),
+              edgeBrightness: new Float32Array(particleCount).fill(1.0),
+            };
 
-        let manPositions = man
-          ? new CreateParticlePositions(man, particleCount).createParticles()
-          : generateCube(particleCount, shapeSize);
+        // Man 모델 파티클 생성 (기본 형태 사용)
+        const manData = man
+          ? new CreateParticlePositions(
+              man,
+              particleCount,
+              modelEdgeBrightnessConfigs[1]
+            ).createParticles()
+          : {
+              positions: generateCube(particleCount, shapeSize),
+              edgeBrightness: new Float32Array(particleCount).fill(1.0),
+            };
 
-        let saturnPositions = saturn
-          ? new CreateParticlePositions(saturn, particleCount).createParticles()
-          : generatePyramid(particleCount, shapeSize);
+        // Saturn 모델 파티클 생성
+        const saturnData = saturn
+          ? new CreateParticlePositions(
+              saturn,
+              particleCount,
+              modelEdgeBrightnessConfigs[1]
+            ).createParticles()
+          : {
+              positions: generatePyramid(particleCount, shapeSize),
+              edgeBrightness: new Float32Array(particleCount).fill(1.0),
+            };
 
-        let telephonePositions = telephone
+        // Telephone 모델 파티클 생성
+        const telephoneData = telephone
           ? new CreateParticlePositions(
               telephone,
-              particleCount
+              particleCount,
+              modelEdgeBrightnessConfigs[2]
             ).createParticles()
-          : generateTorus(particleCount, shapeSize);
+          : {
+              positions: generateTorus(particleCount, shapeSize),
+              edgeBrightness: new Float32Array(particleCount).fill(1.0),
+            };
 
         // 모든 파티클 위치를 동일한 크기로 정규화
-        rocketPositions = normalizeParticlePositions(
-          rocketPositions,
+        const rocketPositions = normalizeParticlePositions(
+          rocketData.positions,
           targetSize
         );
-        manPositions = normalizeParticlePositions(manPositions, targetSize);
-        saturnPositions = normalizeParticlePositions(
-          saturnPositions,
+        const manPositions = normalizeParticlePositions(
+          manData.positions,
           targetSize
         );
-        telephonePositions = normalizeParticlePositions(
-          telephonePositions,
+        const saturnPositions = normalizeParticlePositions(
+          saturnData.positions,
           targetSize
         );
+        const telephonePositions = normalizeParticlePositions(
+          telephoneData.positions,
+          targetSize
+        );
+
+        // 외곽 밝기는 위치 정규화 후에도 유지
+        // 현재 모델에 따라 외곽 밝기 선택 (기본값은 rocket)
+        // TODO: 모델 morphing 시 적절한 외곽 밝기로 전환
+        const currentEdgeBrightness = rocketData.edgeBrightness;
 
         console.log(
           "모든 모델 파티클 위치 정규화 완료 (목표 크기:",
@@ -556,6 +782,11 @@ export default function ParticleSystem({
         bufferGeometry.setAttribute(
           "aRandom2",
           new THREE.Float32BufferAttribute(rnd2Array, 1)
+        );
+        // 외곽 밝기 attribute 추가
+        bufferGeometry.setAttribute(
+          "aEdgeBrightness",
+          new THREE.Float32BufferAttribute(currentEdgeBrightness, 1)
         );
 
         // 텍스처 인덱스 분포 확인

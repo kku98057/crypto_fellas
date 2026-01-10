@@ -7,6 +7,7 @@ varying float vScatterAmount; // 🔥 퍼진 정도를 fragment로 전달
 varying float vTextureIndex; // 텍스처 인덱스를 fragment로 전달
 varying float vRotationAngle; // 회전 각도를 fragment로 전달
 varying float vDistance; // 카메라까지의 거리를 fragment로 전달 (깊이감용)
+varying float vEdgeBrightness; // 외곽 밝기를 fragment로 전달
 
 // morphTarget attributes
 attribute vec3 morphTarget1; // man
@@ -16,6 +17,7 @@ attribute float aTextureIndex; // 텍스처 인덱스 (0~4)
 // 힌트 방식: 파티클별 랜덤 값 (개별 전환 속도용)
 attribute float aRandom1; // 파티클별 랜덤 값 1
 attribute float aRandom2; // 파티클별 랜덤 값 2
+attribute float aEdgeBrightness; // 외곽 밝기
 
 float random(vec3 pos) {
   return fract(sin(dot(pos, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
@@ -24,6 +26,7 @@ float random(vec3 pos) {
 void main() {
   vPosition = position;
   vTextureIndex = aTextureIndex; // 텍스처 인덱스 전달
+  vEdgeBrightness = aEdgeBrightness; // 외곽 밝기 전달
   
   // === 힌트 방식: 두 모양 사이를 lerp로 전환 ===
   // shapeA: 기본 모양 (rocket - position)
