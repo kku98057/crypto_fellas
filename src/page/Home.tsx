@@ -4,8 +4,7 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import ParticleSystem from "../components/canvas/ParticleSystem";
 import ParticleControls from "../components/ParticleControls";
-
-type ColorScheme = "fire" | "neon" | "nature" | "rainbow";
+import type { ColorScheme } from "../types/ColorType";
 
 interface ParticleSystemRef {
   triggerMorph: () => void;

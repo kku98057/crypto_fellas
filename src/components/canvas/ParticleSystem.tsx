@@ -10,32 +10,13 @@ import {
   generatePyramid,
   generateTorus,
 } from "../../utils/shapeGenerators";
-// import CreateParticlePositions from "../../utils/createParticle";
 import vertexShader from "../../shaders/particles/vertex.glsl?raw";
 import fragmentShader from "../../shaders/particles/fragment.glsl?raw";
-// import { morphTarget } from "../../utils/animationSequence";
-
-/**
- * 이름 기반 밀도 가중치 설정
- * 이름에 따라 입자 밀도를 조정할 수 있습니다.
- * 1.0 = 기본 밀도, 0.5 = 절반 밀도, 2.0 = 2배 밀도
- */
-const NAME_DENSITY_WEIGHTS: Record<string, number> = {
-  // glass가 포함된 이름은 낮은 밀도
-  glass: 0.3,
-  // Circle이 포함된 이름은 높은 밀도
-  Circle: 1.5,
-  Circle002: 5,
-  Circle003: 1.5,
-  Circle004: 1.5,
-  // Cylinder는 기본 밀도
-  Cylinder: 1.0,
-  // Cube는 높은 밀도
-  Cube: 2.0,
-  Cube002: 2.0,
-  // 기본값
-  default: 1.0,
-};
+import {
+  MORPH_CONFIG,
+  NAME_DENSITY_WEIGHTS,
+  TEXTURE_PATHS,
+} from "../../enum/ParticlesEnum";
 
 /**
  * 이름에 따라 밀도 가중치를 가져오는 함수
@@ -248,36 +229,52 @@ class CreateParticlePositions {
 }
 
 /**
- * 모프 설정 상수
- */
-const MORPH_CONFIG = {
-  duration: 4000, // 모프 애니메이션 지속 시간 (ms)
-  swirlFactor: 4.0,
-  noiseFrequency: 0.1,
-  noiseTimeScale: 0.04,
-  noiseMaxStrength: 2.8,
-  swarmDistanceFactor: 1.5,
-};
-
-/**
  * 색상 스킴 정의
+ * colors 배열에 원하는 만큼 색상을 지정할 수 있습니다.
+ * 한 개: 단색, 두 개: 그라데이션, 세 개 이상: 다중 그라데이션
+ *
+ * 색상 지정 방법:
+ * - Hex 숫자: new THREE.Color(0xff0000) 또는 new THREE.Color(0xFF0000)
+ * - Hex 문자열: new THREE.Color("#ff0000") 또는 new THREE.Color("#FF0000")
+ * - RGB 문자열: new THREE.Color("rgb(255, 0, 0)")
+ * - 색상 이름: new THREE.Color("red")
  */
-const COLOR_SCHEMES = {
+export const COLOR_SCHEMES = {
   fire: {
-    color1: new THREE.Color(0xff4500), // 주황색
-    color2: new THREE.Color(0xffcc00), // 노란색
+    colors: [
+      new THREE.Color("#4097ff"), //
+    ],
   },
   neon: {
-    color1: new THREE.Color(0xff00ff), // 마젠타
-    color2: new THREE.Color(0x00ffff), // 시안
+    colors: [
+      new THREE.Color("#ff00ff"), // 마젠타 (hex 문자열)
+      new THREE.Color("#00ffff"), // 시안 (hex 문자열)
+    ],
   },
   nature: {
-    color1: new THREE.Color(0x00ff00), // 초록색
-    color2: new THREE.Color(0x66ffcc), // 청록색
+    colors: [
+      new THREE.Color(0x00ff00), // 초록색 (hex 숫자)
+      new THREE.Color(0x66ffcc), // 청록색 (hex 숫자)
+    ],
   },
   rainbow: {
-    color1: new THREE.Color(0xff0000), // 빨강
-    color2: new THREE.Color(0x0000ff), // 파랑
+    colors: [
+      new THREE.Color(0xcc0000), // 진한 빨강
+      new THREE.Color(0x0000cc), // 진한 파랑
+      new THREE.Color(0xcccc00), // 진한 노랑
+    ],
+  },
+  // 예시: 한 개 색상 (단색) - hex 문자열 사용
+  red: {
+    colors: [new THREE.Color("#ff0000")],
+  },
+  // 예시: 세 개 색상 - hex 문자열 사용
+  sunset: {
+    colors: [
+      new THREE.Color("#ff6b6b"), // 연한 빨강
+      new THREE.Color("#ffa500"), // 주황
+      new THREE.Color("#ffd700"), // 금색
+    ],
   },
 } as const;
 
@@ -347,13 +344,7 @@ export default function ParticleSystem({
 
   useEffect(() => {
     const loadTextures = async () => {
-      const texturePaths = [
-        "/image/investors/1.png",
-        "/image/investors/2.png",
-        "/image/investors/3.png",
-        "/image/investors/4.png",
-        "/image/investors/5.png",
-      ];
+      const texturePaths = TEXTURE_PATHS;
 
       const loader = new THREE.TextureLoader();
       const loadedTextures: THREE.Texture[] = [];
@@ -421,7 +412,18 @@ export default function ParticleSystem({
       textures.length > 0 ? textures : Array(5).fill(defaultTexture);
 
     // 현재 색상 스킴
-    const colors = COLOR_SCHEMES[colorScheme];
+    const colorSchemeData = COLOR_SCHEMES[colorScheme];
+    const colorArray = colorSchemeData.colors;
+    const colorCount = colorArray.length;
+
+    // 색상 배열을 vec3 배열로 변환 (최대 10개 색상 지원)
+    const maxColors = 10;
+    const colorValues: THREE.Vector3[] = [];
+    for (let i = 0; i < maxColors; i++) {
+      const color = i < colorCount ? colorArray[i] : colorArray[colorCount - 1];
+      // THREE.Color를 THREE.Vector3로 변환 (r, g, b -> x, y, z)
+      colorValues.push(new THREE.Vector3(color.r, color.g, color.b));
+    }
 
     return new THREE.ShaderMaterial({
       uniforms: {
@@ -433,8 +435,12 @@ export default function ParticleSystem({
         uEffectStrength: { value: 0 },
         uNoiseStrength: { value: 0 },
         uSwirlFactor: { value: MORPH_CONFIG.swirlFactor },
-        uColor1: { value: colors.color1 },
-        uColor2: { value: colors.color2 },
+        // 색상 배열 uniform 추가
+        uColors: { value: colorValues },
+        uColorCount: { value: colorCount },
+        // 하위 호환성을 위해 uColor1, uColor2 유지
+        uColor1: { value: colorArray[0] },
+        uColor2: { value: colorArray[colorCount > 1 ? 1 : 0] },
         u_texture1: { value: finalTextures[0] || defaultTexture },
         u_texture2: { value: finalTextures[1] || defaultTexture },
         u_texture3: { value: finalTextures[2] || defaultTexture },
@@ -1115,9 +1121,27 @@ export default function ParticleSystem({
     (scheme: ColorScheme) => {
       setColorScheme(scheme);
       if (shaderMaterialRef.current) {
-        const colors = COLOR_SCHEMES[scheme];
-        shaderMaterialRef.current.uniforms.uColor1.value = colors.color1;
-        shaderMaterialRef.current.uniforms.uColor2.value = colors.color2;
+        const colorSchemeData = COLOR_SCHEMES[scheme];
+        const colorArray = colorSchemeData.colors;
+        const colorCount = colorArray.length;
+
+        // 색상 배열 업데이트
+        const maxColors = 10;
+        for (let i = 0; i < maxColors; i++) {
+          const color =
+            i < colorCount ? colorArray[i] : colorArray[colorCount - 1];
+          // THREE.Color를 THREE.Vector3로 변환 (r, g, b -> x, y, z)
+          shaderMaterialRef.current.uniforms.uColors.value[i] =
+            new THREE.Vector3(color.r, color.g, color.b);
+        }
+
+        // 색상 개수 업데이트
+        shaderMaterialRef.current.uniforms.uColorCount.value = colorCount;
+
+        // 하위 호환성을 위해 uColor1, uColor2도 업데이트
+        shaderMaterialRef.current.uniforms.uColor1.value = colorArray[0];
+        shaderMaterialRef.current.uniforms.uColor2.value =
+          colorArray[colorCount > 1 ? 1 : 0];
       }
       onColorSchemeChange?.(scheme);
     },

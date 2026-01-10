@@ -1,11 +1,38 @@
 uniform float u_opacity;
-uniform vec3 uColor1;
-uniform vec3 uColor2;
+uniform vec3 uColor1; // 하위 호환성용
+uniform vec3 uColor2; // 하위 호환성용
+uniform vec3 uColors[10]; // 색상 배열 (최대 10개)
+uniform float uColorCount; // 실제 색상 개수
 uniform sampler2D u_texture1;
 uniform sampler2D u_texture2;
 uniform sampler2D u_texture3;
 uniform sampler2D u_texture4;
 uniform sampler2D u_texture5;
+
+// 여러 색상 사이를 보간하는 함수
+vec3 getColorFromArray(float t, float colorCount) {
+  // t를 0~1 범위로 정규화
+  t = clamp(t, 0.0, 1.0);
+  
+  // 색상이 1개면 단색 반환
+  if (colorCount < 1.5) {
+    return uColors[0];
+  }
+  
+  // 색상 개수가 2개 이상일 때 보간
+  float segmentCount = colorCount - 1.0;
+  float segmentIndex = t * segmentCount;
+  float segmentT = fract(segmentIndex);
+  int index = int(floor(segmentIndex));
+  
+  // 마지막 세그먼트 처리
+  if (index >= int(colorCount) - 1) {
+    return uColors[int(colorCount) - 1];
+  }
+  
+  // 두 색상 사이 보간
+  return mix(uColors[index], uColors[index + 1], segmentT);
+}
 
 varying vec3 vPosition;
 varying float vScatterAmount;
@@ -66,7 +93,8 @@ void main() {
   
   // 색상 스킴 적용 (위치 기반 그라데이션)
   float colorMix = (vPosition.y + 1.0) * 0.5; // -1 ~ 1을 0 ~ 1로 변환
-  vec3 schemeColor = mix(uColor1, uColor2, colorMix);
+  // 여러 색상 배열에서 색상 가져오기
+  vec3 schemeColor = getColorFromArray(colorMix, uColorCount);
   
   // 텍스처 색상과 색상 스킴 블렌딩
   vec3 finalColor = texColor.rgb * schemeColor;

@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import type { ColorScheme } from "../types/ColorType";
+import { COLOR_SCHEMES } from "./canvas/ParticleSystem";
 import styles from "./ParticleControls.module.scss";
-
-type ColorScheme = "fire" | "neon" | "nature" | "rainbow";
 
 interface ParticleControlsProps {
   currentShape: string;
@@ -19,43 +18,44 @@ export default function ParticleControls({
   onShapeChange,
   onColorSchemeChange,
 }: ParticleControlsProps) {
-  const colorSchemes: { scheme: ColorScheme; gradient: string }[] = [
-    {
-      scheme: "fire",
-      gradient: "linear-gradient(to bottom right, #ff4500, #ffcc00)",
-    },
-    {
-      scheme: "neon",
-      gradient: "linear-gradient(to bottom right, #ff00ff, #00ffff)",
-    },
-    {
-      scheme: "nature",
-      gradient: "linear-gradient(to bottom right, #00ff00, #66ffcc)",
-    },
-    {
-      scheme: "rainbow",
-      gradient:
-        "linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)",
-    },
-  ];
+  // const colorSchemes: { scheme: ColorScheme; gradient: string }[] = [
+  //   {
+  //     scheme: "fire",
+  //     gradient: "linear-gradient(to bottom right, #ff4500, #ffcc00)",
+  //   },
+  //   {
+  //     scheme: "neon",
+  //     gradient: "linear-gradient(to bottom right, #ff00ff, #00ffff)",
+  //   },
+  //   {
+  //     scheme: "nature",
+  //     gradient: "linear-gradient(to bottom right, #00ff00, #66ffcc)",
+  //   },
+  //   {
+  //     scheme: "rainbow",
+  //     gradient:
+  //       "linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet)",
+  //   },
+  // ];
 
   return (
     <div id="particle-controls" className={styles.controls}>
-      <div className={styles.info}>
-        Shape: {currentShape} (Click to morph)
-      </div>
+      <div className={styles.info}>Shape: {currentShape} (Click to morph)</div>
       <button onClick={onShapeChange} className={styles.shapeButton}>
         Change Shape
       </button>
       <div className={styles.colorPicker}>
-        {colorSchemes.map(({ scheme, gradient }) => (
+        {Object.keys(COLOR_SCHEMES).map((scheme) => (
           <div
             key={scheme}
             className={`${styles.colorOption} ${
               currentColorScheme === scheme ? styles.active : ""
             }`}
-            style={{ background: gradient }}
-            onClick={() => onColorSchemeChange(scheme)}
+            style={{
+              background:
+                COLOR_SCHEMES[scheme as ColorScheme].colors[0].getStyle(),
+            }}
+            onClick={() => onColorSchemeChange(scheme as ColorScheme)}
             title={scheme}
           />
         ))}
@@ -63,4 +63,3 @@ export default function ParticleControls({
     </div>
   );
 }
-
