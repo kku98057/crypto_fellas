@@ -24,7 +24,6 @@ float random(vec3 pos) {
 }
 
 void main() {
-  vPosition = position;
   vTextureIndex = aTextureIndex; // 텍스처 인덱스 전달
   vEdgeBrightness = aEdgeBrightness; // 외곽 밝기 전달
   
@@ -113,6 +112,9 @@ void main() {
   // 각 파티클의 회전 각도 (위치 기반으로 다른 시작 각도)
   float baseAngle = random(position * 2.0) * 6.28318; // 0~2π
   vRotationAngle = baseAngle + uTime * rotationSpeed; // fragment로 전달
+  
+  // 모델 로컬 좌표 기준 위치를 fragment로 전달 (morphing 후 위치 사용)
+  vPosition = newPosition;
   
   // 최종 변환 (위치는 그대로 유지)
   vec4 mvPosition = modelViewMatrix * vec4(newPosition, 1.0);

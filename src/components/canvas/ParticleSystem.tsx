@@ -231,42 +231,60 @@ class CreateParticlePositions {
 /**
  * 색상 스킴 정의
  * colors 배열에 원하는 만큼 색상을 지정할 수 있습니다.
- * 한 개: 단색, 두 개: 그라데이션, 세 개 이상: 다중 그라데이션
+ * weights 배열로 각 색상이 차지하는 비율을 지정할 수 있습니다.
+ * weights가 없으면 균등하게 분배됩니다.
+ * angle로 색상 분배 방향을 조정할 수 있습니다 (도 단위, 기본값: 0).
  *
  * 색상 지정 방법:
  * - Hex 숫자: new THREE.Color(0xff0000) 또는 new THREE.Color(0xFF0000)
  * - Hex 문자열: new THREE.Color("#ff0000") 또는 new THREE.Color("#FF0000")
  * - RGB 문자열: new THREE.Color("rgb(255, 0, 0)")
  * - 색상 이름: new THREE.Color("red")
+ *
+ * weights 예시:
+ * - [0.4, 0.1, 0.5]: 첫 번째 색상 40%, 두 번째 10%, 세 번째 50%
+ * - [1, 1, 1]: 균등 분배 (각 33.3%)
+ *
+ * angle 예시:
+ * - 0: 위에서 아래로 (기본값, Y축 기준)
+ * - 90: 왼쪽에서 오른쪽으로 (X축 기준)
+ * - 45: 대각선 (왼쪽 위에서 오른쪽 아래)
+ * - -45: 대각선 (오른쪽 위에서 왼쪽 아래)
  */
 export const COLOR_SCHEMES = {
   fire: {
     colors: [
       new THREE.Color("#4097ff"), //
     ],
+    angle: 0, // 기본값: 위에서 아래
   },
   neon: {
     colors: [
       new THREE.Color("#ff00ff"), // 마젠타 (hex 문자열)
       new THREE.Color("#00ffff"), // 시안 (hex 문자열)
     ],
+    angle: 0, // 기본값
   },
   nature: {
     colors: [
       new THREE.Color(0x00ff00), // 초록색 (hex 숫자)
       new THREE.Color(0x66ffcc), // 청록색 (hex 숫자)
     ],
+    angle: 0, // 기본값
   },
   rainbow: {
     colors: [
-      new THREE.Color(0xcc0000), // 진한 빨강
-      new THREE.Color(0x0000cc), // 진한 파랑
-      new THREE.Color(0xcccc00), // 진한 노랑
+      new THREE.Color(0xff0000), // 빨강 (아래쪽 - 많이)
+      new THREE.Color(0x0000ff), // 파랑 (중간 - 얇은 밴드)
+      new THREE.Color(0xffff00), // 노랑 (위쪽 - 많이)
     ],
+    weights: [0.6, 0.3, 0.1],
+    angle: 45, // 위에서 아래로
   },
   // 예시: 한 개 색상 (단색) - hex 문자열 사용
   red: {
     colors: [new THREE.Color("#ff0000")],
+    angle: 0, // 기본값
   },
   // 예시: 세 개 색상 - hex 문자열 사용
   sunset: {
@@ -275,6 +293,7 @@ export const COLOR_SCHEMES = {
       new THREE.Color("#ffa500"), // 주황
       new THREE.Color("#ffd700"), // 금색
     ],
+    angle: 45, // 대각선 (왼쪽 위에서 오른쪽 아래)
   },
 } as const;
 
@@ -415,15 +434,41 @@ export default function ParticleSystem({
     const colorSchemeData = COLOR_SCHEMES[colorScheme];
     const colorArray = colorSchemeData.colors;
     const colorCount = colorArray.length;
+    // weights가 없으면 균등 분배 (각 1/n)
+    const weights =
+      "weights" in colorSchemeData && colorSchemeData.weights
+        ? colorSchemeData.weights
+        : colorArray.map(() => 1.0 / colorCount);
+    // angle이 없으면 기본값 0 (위에서 아래)
+    const angle =
+      "angle" in colorSchemeData && typeof colorSchemeData.angle === "number"
+        ? colorSchemeData.angle
+        : 0;
 
     // 색상 배열을 vec3 배열로 변환 (최대 10개 색상 지원)
     const maxColors = 10;
     const colorValues: THREE.Vector3[] = [];
+    const weightValues: number[] = [];
     for (let i = 0; i < maxColors; i++) {
-      const color = i < colorCount ? colorArray[i] : colorArray[colorCount - 1];
-      // THREE.Color를 THREE.Vector3로 변환 (r, g, b -> x, y, z)
-      colorValues.push(new THREE.Vector3(color.r, color.g, color.b));
+      if (i < colorCount) {
+        const color = colorArray[i];
+        // THREE.Color를 THREE.Vector3로 변환 (r, g, b -> x, y, z)
+        colorValues.push(new THREE.Vector3(color.r, color.g, color.b));
+        weightValues.push(weights[i] || 0);
+      } else {
+        // 부족한 색상은 마지막 색상으로 채움
+        const lastColor = colorArray[colorCount - 1];
+        colorValues.push(
+          new THREE.Vector3(lastColor.r, lastColor.g, lastColor.b)
+        );
+        weightValues.push(0);
+      }
     }
+
+    // 기본 모델 Y 범위 (targetSize = 10일 때 대략 -5 ~ 5)
+    const targetSize = 10;
+    const defaultMinY = -targetSize / 2;
+    const defaultMaxY = targetSize / 2;
 
     return new THREE.ShaderMaterial({
       uniforms: {
@@ -438,6 +483,11 @@ export default function ParticleSystem({
         // 색상 배열 uniform 추가
         uColors: { value: colorValues },
         uColorCount: { value: colorCount },
+        uColorWeights: { value: weightValues }, // 색상별 비율
+        uColorAngle: { value: (angle * Math.PI) / 180 }, // 각도 (라디안으로 변환)
+        // 모델 로컬 Y 범위 (색상 정규화용) - 모델 로딩 후 업데이트됨
+        uModelMinY: { value: defaultMinY },
+        uModelMaxY: { value: defaultMaxY },
         // 하위 호환성을 위해 uColor1, uColor2 유지
         uColor1: { value: colorArray[0] },
         uColor2: { value: colorArray[colorCount > 1 ? 1 : 0] },
@@ -694,23 +744,69 @@ export default function ParticleSystem({
               edgeBrightness: new Float32Array(particleCount).fill(1.0),
             };
 
-        // 모든 파티클 위치를 동일한 크기로 정규화
-        const rocketPositions = normalizeParticlePositions(
+        // 모든 파티클 위치를 동일한 크기로 정규화 (모델별 바운딩 박스 계산)
+        const normalizeWithBounds = (
+          positions: Float32Array,
+          targetSize: number
+        ): { positions: Float32Array; minY: number; maxY: number } => {
+          if (positions.length === 0) {
+            return { positions, minY: -targetSize / 2, maxY: targetSize / 2 };
+          }
+
+          const count = positions.length / 3;
+          let minY = Infinity,
+            maxY = -Infinity;
+
+          // Y 범위 계산
+          for (let i = 0; i < count; i++) {
+            const y = positions[i * 3 + 1];
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+          }
+
+          const normalized = normalizeParticlePositions(positions, targetSize);
+
+          // 정규화 후 다시 Y 범위 계산
+          let normalizedMinY = Infinity,
+            normalizedMaxY = -Infinity;
+          for (let i = 0; i < count; i++) {
+            const y = normalized[i * 3 + 1];
+            normalizedMinY = Math.min(normalizedMinY, y);
+            normalizedMaxY = Math.max(normalizedMaxY, y);
+          }
+
+          return {
+            positions: normalized,
+            minY: normalizedMinY,
+            maxY: normalizedMaxY,
+          };
+        };
+
+        const rocketNormalized = normalizeWithBounds(
           rocketData.positions,
           targetSize
         );
-        const manPositions = normalizeParticlePositions(
+        const manNormalized = normalizeWithBounds(
           manData.positions,
           targetSize
         );
-        const saturnPositions = normalizeParticlePositions(
+        const saturnNormalized = normalizeWithBounds(
           saturnData.positions,
           targetSize
         );
-        const telephonePositions = normalizeParticlePositions(
+        const telephoneNormalized = normalizeWithBounds(
           telephoneData.positions,
           targetSize
         );
+
+        const rocketPositions = rocketNormalized.positions;
+        const manPositions = manNormalized.positions;
+        const saturnPositions = saturnNormalized.positions;
+        const telephonePositions = telephoneNormalized.positions;
+
+        // 현재 모델의 Y 범위 저장 (기본값: rocket)
+        const currentMinY = rocketNormalized.minY;
+        const currentMaxY = rocketNormalized.maxY;
 
         // 외곽 밝기는 위치 정규화 후에도 유지
         // 현재 모델에 따라 외곽 밝기 선택 (기본값은 rocket)
@@ -760,6 +856,12 @@ export default function ParticleSystem({
 
         // BufferGeometry 생성
         const bufferGeometry = new THREE.BufferGeometry();
+        // 모델 Y 범위를 shader에 설정
+        if (shaderMaterialRef.current) {
+          shaderMaterialRef.current.uniforms.uModelMinY.value = currentMinY;
+          shaderMaterialRef.current.uniforms.uModelMaxY.value = currentMaxY;
+        }
+
         bufferGeometry.setAttribute(
           "position",
           new THREE.Float32BufferAttribute(rocketPositions, 3)
@@ -1124,19 +1226,42 @@ export default function ParticleSystem({
         const colorSchemeData = COLOR_SCHEMES[scheme];
         const colorArray = colorSchemeData.colors;
         const colorCount = colorArray.length;
+        // weights가 없으면 균등 분배 (각 1/n)
+        const weights =
+          "weights" in colorSchemeData && colorSchemeData.weights
+            ? colorSchemeData.weights
+            : colorArray.map(() => 1.0 / colorCount);
+        // angle이 없으면 기본값 0 (위에서 아래)
+        const angle =
+          "angle" in colorSchemeData &&
+          typeof colorSchemeData.angle === "number"
+            ? colorSchemeData.angle
+            : 0;
 
         // 색상 배열 업데이트
         const maxColors = 10;
         for (let i = 0; i < maxColors; i++) {
-          const color =
-            i < colorCount ? colorArray[i] : colorArray[colorCount - 1];
-          // THREE.Color를 THREE.Vector3로 변환 (r, g, b -> x, y, z)
-          shaderMaterialRef.current.uniforms.uColors.value[i] =
-            new THREE.Vector3(color.r, color.g, color.b);
+          if (i < colorCount) {
+            const color = colorArray[i];
+            // THREE.Color를 THREE.Vector3로 변환 (r, g, b -> x, y, z)
+            shaderMaterialRef.current.uniforms.uColors.value[i] =
+              new THREE.Vector3(color.r, color.g, color.b);
+            shaderMaterialRef.current.uniforms.uColorWeights.value[i] =
+              weights[i] || 0;
+          } else {
+            // 부족한 색상은 마지막 색상으로 채움
+            const lastColor = colorArray[colorCount - 1];
+            shaderMaterialRef.current.uniforms.uColors.value[i] =
+              new THREE.Vector3(lastColor.r, lastColor.g, lastColor.b);
+            shaderMaterialRef.current.uniforms.uColorWeights.value[i] = 0;
+          }
         }
 
         // 색상 개수 업데이트
         shaderMaterialRef.current.uniforms.uColorCount.value = colorCount;
+        // 각도 업데이트 (라디안으로 변환)
+        shaderMaterialRef.current.uniforms.uColorAngle.value =
+          (angle * Math.PI) / 180;
 
         // 하위 호환성을 위해 uColor1, uColor2도 업데이트
         shaderMaterialRef.current.uniforms.uColor1.value = colorArray[0];
