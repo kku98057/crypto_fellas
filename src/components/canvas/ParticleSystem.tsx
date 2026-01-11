@@ -8,13 +8,14 @@ import {
   generateSphere,
   generateCube,
   generatePyramid,
-  generateTorus,
 } from "../../utils/shapeGenerators";
 import vertexShader from "../../shaders/particles/vertex.glsl?raw";
 import fragmentShader from "../../shaders/particles/fragment.glsl?raw";
 import {
   MORPH_CONFIG,
   NAME_DENSITY_WEIGHTS,
+  NAME_EDGE_BRIGHTNESS,
+  PARTICLE_MODEL_PATH,
   TEXTURE_PATHS,
 } from "../../enum/ParticlesEnum";
 
@@ -24,16 +25,9 @@ import {
 function getDensityWeight(name: string): number {
   if (!name) return NAME_DENSITY_WEIGHTS.default;
 
-  // 정확한 이름 매칭 우선
+  // 정확한 이름 매칭만 사용 (부분 매칭 제거)
   if (NAME_DENSITY_WEIGHTS[name]) {
     return NAME_DENSITY_WEIGHTS[name];
-  }
-
-  // 부분 매칭 (이름에 포함된 키워드 확인)
-  for (const [key, weight] of Object.entries(NAME_DENSITY_WEIGHTS)) {
-    if (key !== "default" && name.includes(key)) {
-      return weight;
-    }
   }
 
   return NAME_DENSITY_WEIGHTS.default;
@@ -52,34 +46,43 @@ interface ModelEdgeBrightnessConfig {
 
 /**
  * 이름에 따라 외곽 밝기를 가져오는 함수
- * config가 없으면 기본값 1.0 반환
+ * ParticlesEnum.ts의 NAME_EDGE_BRIGHTNESS를 기본으로 사용
+ * config가 제공되면 그것을 우선 사용 (모델별 커스텀 설정용)
  */
 function getEdgeBrightness(
   name: string,
   config?: ModelEdgeBrightnessConfig
 ): number {
-  if (!config) return 1.0;
+  // config가 제공되면 그것을 사용 (모델별 커스텀 설정)
+  if (config) {
+    const defaultBrightness = config.default ?? NAME_EDGE_BRIGHTNESS.default;
 
-  const defaultBrightness = config.default ?? 1.0;
+    // 이름이 없으면 기본값 반환
+    if (!name || !config.names) {
+      return defaultBrightness;
+    }
 
-  // 이름이 없으면 기본값 반환
-  if (!name || !config.names) {
+    // 정확한 이름 매칭만 사용 (부분 매칭 제거)
+    if (config.names[name] !== undefined) {
+      return config.names[name];
+    }
+
     return defaultBrightness;
   }
 
-  // 정확한 이름 매칭 우선
-  if (config.names[name] !== undefined) {
-    return config.names[name];
+  // config가 없으면 ParticlesEnum.ts의 공통 설정 사용
+  // 이름이 없거나 매칭되지 않으면 기본값 반환
+  if (!name || !NAME_EDGE_BRIGHTNESS.names) {
+    return NAME_EDGE_BRIGHTNESS.default;
   }
 
-  // 부분 매칭 (이름에 포함된 키워드 확인)
-  for (const [key, brightness] of Object.entries(config.names)) {
-    if (name.includes(key)) {
-      return brightness;
-    }
+  // 정확한 이름 매칭만 사용 (부분 매칭 제거)
+  if (NAME_EDGE_BRIGHTNESS.names[name] !== undefined) {
+    return NAME_EDGE_BRIGHTNESS.names[name];
   }
 
-  return defaultBrightness;
+  // 매칭되지 않으면 기본값 반환 (모든 메시에 공통 적용)
+  return NAME_EDGE_BRIGHTNESS.default;
 }
 
 /**
@@ -398,7 +401,7 @@ export default function ParticleSystem({
       setTextures(
         loadedTextures.length > 0
           ? loadedTextures
-          : Array(5).fill(defaultTexture)
+          : Array(TEXTURE_PATHS.length).fill(defaultTexture) // 동적으로 개수 설정
       );
     };
 
@@ -420,6 +423,7 @@ export default function ParticleSystem({
             : `(${image?.width || "N/A"}x${image?.height || "N/A"})`
         );
       });
+      console.log("텍스처 개수:", textures.length);
       console.log("================================");
     }
   }, [textures, defaultTexture]);
@@ -427,8 +431,13 @@ export default function ParticleSystem({
   // Shader Material 생성
   const shaderMaterial = useMemo(() => {
     // 텍스처가 로드되지 않았으면 기본 텍스처 사용
+    const textureCount = TEXTURE_PATHS.length; // 동적으로 텍스처 개수 계산
     const finalTextures =
-      textures.length > 0 ? textures : Array(5).fill(defaultTexture);
+      textures.length > 0 ? textures : Array(textureCount).fill(defaultTexture); // 동적으로 개수 설정
+
+    console.log("=== Shader Material 생성 ===");
+    console.log("텍스처 개수:", textureCount);
+    console.log("최종 텍스처 배열:", finalTextures.length);
 
     // 현재 색상 스킴
     const colorSchemeData = COLOR_SCHEMES[colorScheme];
@@ -473,7 +482,7 @@ export default function ParticleSystem({
     return new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        u_scale: { value: 0.3 },
+        u_scale: { value: 0.4 },
         u_opacity: { value: 1 },
         u_morphTargetInfluences: { value: [0, 0, 0, 0] },
         uMorphProgress: { value: 0 },
@@ -488,14 +497,25 @@ export default function ParticleSystem({
         // 모델 로컬 Y 범위 (색상 정규화용) - 모델 로딩 후 업데이트됨
         uModelMinY: { value: defaultMinY },
         uModelMaxY: { value: defaultMaxY },
+        // 텍스처 사용 여부 (기본값: 1.0 = 사용)
+        uUseTexture: { value: 1.0 },
         // 하위 호환성을 위해 uColor1, uColor2 유지
         uColor1: { value: colorArray[0] },
         uColor2: { value: colorArray[colorCount > 1 ? 1 : 0] },
+        // 텍스처는 최대 5개까지 지원, 부족하면 첫 번째 텍스처로 채움
         u_texture1: { value: finalTextures[0] || defaultTexture },
-        u_texture2: { value: finalTextures[1] || defaultTexture },
-        u_texture3: { value: finalTextures[2] || defaultTexture },
-        u_texture4: { value: finalTextures[3] || defaultTexture },
-        u_texture5: { value: finalTextures[4] || defaultTexture },
+        u_texture2: {
+          value: finalTextures[1] || finalTextures[0] || defaultTexture,
+        },
+        u_texture3: {
+          value: finalTextures[2] || finalTextures[0] || defaultTexture,
+        },
+        u_texture4: {
+          value: finalTextures[3] || finalTextures[0] || defaultTexture,
+        },
+        u_texture5: {
+          value: finalTextures[4] || finalTextures[0] || defaultTexture,
+        },
       },
       side: THREE.DoubleSide,
       vertexShader: vertexShader,
@@ -509,6 +529,24 @@ export default function ParticleSystem({
   // shaderMaterial ref 업데이트 (useEffect에서 처리)
   useEffect(() => {
     shaderMaterialRef.current = shaderMaterial;
+
+    // Shader Material Uniforms 확인 (디버깅용)
+    if (shaderMaterialRef.current) {
+      console.log("=== Shader Material Uniforms ===");
+      console.log(
+        "uUseTexture:",
+        shaderMaterialRef.current.uniforms.uUseTexture.value
+      );
+      console.log(
+        "u_texture1:",
+        shaderMaterialRef.current.uniforms.u_texture1.value
+      );
+      console.log(
+        "u_texture2:",
+        shaderMaterialRef.current.uniforms.u_texture2.value
+      );
+      console.log("================================");
+    }
   }, [shaderMaterial]);
 
   // 모델 중앙 정렬 및 동일 크기로 스케일링 함수
@@ -600,11 +638,7 @@ export default function ParticleSystem({
 
       try {
         // 모델 로딩 시도 (실패 시 기본 형태 사용)
-        const modelPaths = [
-          "/object/model_1.glb", // rocket 모델
-          "/object/model_2.glb", // saturn 모델
-          "/object/model_3.glb", // telephone 모델
-        ];
+        const modelPaths = PARTICLE_MODEL_PATH;
 
         const loadModelSafely = async (path: string) => {
           try {
@@ -619,41 +653,20 @@ export default function ParticleSystem({
           }
         };
 
-        const [man, rocket, saturn, telephone] = await Promise.all(
+        const [gamepad, card, saturn] = await Promise.all(
           modelPaths.map(loadModelSafely)
         );
 
         // 모델 로딩 결과 출력
         console.log("=== 모델 로딩 결과 ===");
-        console.log(
-          "Model 1 (Rocket):",
-          rocket ? "✅ 로드 성공" : "❌ 기본 형태 사용 (Sphere)"
-        );
-        if (rocket) {
-          console.log("  - Scene children:", rocket.scene.children.length);
-          console.log("  - Scene:", rocket.scene);
-        }
-        console.log(
-          "Model 2 (Saturn):",
-          saturn ? "✅ 로드 성공" : "❌ 기본 형태 사용 (Pyramid)"
-        );
-        if (saturn) {
-          console.log("  - Scene children:", saturn.scene.children.length);
-          console.log("  - Scene:", saturn.scene);
-        }
-        console.log(
-          "Model 3 (Telephone):",
-          telephone ? "✅ 로드 성공" : "❌ 기본 형태 사용 (Torus)"
-        );
-        if (telephone) {
-          console.log("  - Scene children:", telephone.scene.children.length);
-          console.log("  - Scene:", telephone.scene);
-        }
+        console.log("Gamepad (model_4):", gamepad ? "✓ 로드됨" : "✗ 실패");
+        console.log("Card (model_2):", card ? "✓ 로드됨" : "✗ 실패");
+        console.log("Saturn (model_3):", saturn ? "✓ 로드됨" : "✗ 실패");
         console.log("===================");
 
         // 모델이 있으면 중앙 정렬 및 동일 크기로 스케일링
         const targetSize = 10; // 모든 모델을 이 크기로 통일
-        [man, rocket, saturn, telephone].forEach((result, index) => {
+        [gamepad, card, saturn].forEach((result, index) => {
           if (result) {
             centerModels(result.scene, targetSize);
             console.log(
@@ -664,60 +677,46 @@ export default function ParticleSystem({
           }
         });
 
-        // 모델별 외곽 밝기 설정
-        // 이름을 넣지 않으면 모든 child에 기본값(1.0)이 적용됩니다
+        // 모든 모델에 ParticlesEnum.ts의 공통 외곽 밝기 설정 사용
         const modelEdgeBrightnessConfigs: (
           | ModelEdgeBrightnessConfig
           | undefined
         )[] = [
-          undefined,
-
-          // Rocket 모델 외곽 밝기 설정
-          // {
-          //   default: 2.0, // 기본 외곽 밝기 (이름이 없거나 매칭되지 않을 때)
-          //   names: {
-          //     glass: 3.0, // glass가 포함된 이름은 더 밝게
-          //     Circle: 2.5,
-          //     Circle002: 3.0,
-          //     Circle003: 2.5,
-          //     Circle004: 2.5,
-          //     Cylinder: 1.8,
-          //     Cube: 2.2,
-          //     Cube002: 2.2,
-          //   },
-          // },
-          // Saturn 모델 외곽 밝기 설정 (선택사항)
-          undefined, // 기본값 1.0 적용
-          // Telephone 모델 외곽 밝기 설정 (선택사항)
-          undefined, // 기본값 1.0 적용
+          undefined, // Gamepad 모델 - 공통 설정 사용
+          undefined, // Card 모델 - 공통 설정 사용
+          undefined, // Saturn 모델 - 공통 설정 사용
         ];
 
         // 파티클 생성 (모델이 없으면 기본 형태 사용)
         const particleCount = 8000;
         const shapeSize = 10; // 기본 형태도 동일한 크기로
 
-        // Rocket 모델 파티클 생성
-        const rocketData = rocket
+        // Gamepad 모델 파티클 생성
+        const gamepadData = gamepad
           ? new CreateParticlePositions(
-              rocket,
+              gamepad,
               particleCount,
               modelEdgeBrightnessConfigs[0]
             ).createParticles()
           : {
               positions: generateSphere(particleCount, shapeSize),
-              edgeBrightness: new Float32Array(particleCount).fill(1.0),
+              edgeBrightness: new Float32Array(particleCount).fill(
+                NAME_EDGE_BRIGHTNESS.default
+              ),
             };
 
-        // Man 모델 파티클 생성 (기본 형태 사용)
-        const manData = man
+        // Card 모델 파티클 생성
+        const cardData = card
           ? new CreateParticlePositions(
-              man,
+              card,
               particleCount,
               modelEdgeBrightnessConfigs[1]
             ).createParticles()
           : {
               positions: generateCube(particleCount, shapeSize),
-              edgeBrightness: new Float32Array(particleCount).fill(1.0),
+              edgeBrightness: new Float32Array(particleCount).fill(
+                NAME_EDGE_BRIGHTNESS.default
+              ),
             };
 
         // Saturn 모델 파티클 생성
@@ -725,23 +724,13 @@ export default function ParticleSystem({
           ? new CreateParticlePositions(
               saturn,
               particleCount,
-              modelEdgeBrightnessConfigs[1]
-            ).createParticles()
-          : {
-              positions: generatePyramid(particleCount, shapeSize),
-              edgeBrightness: new Float32Array(particleCount).fill(1.0),
-            };
-
-        // Telephone 모델 파티클 생성
-        const telephoneData = telephone
-          ? new CreateParticlePositions(
-              telephone,
-              particleCount,
               modelEdgeBrightnessConfigs[2]
             ).createParticles()
           : {
-              positions: generateTorus(particleCount, shapeSize),
-              edgeBrightness: new Float32Array(particleCount).fill(1.0),
+              positions: generatePyramid(particleCount, shapeSize),
+              edgeBrightness: new Float32Array(particleCount).fill(
+                NAME_EDGE_BRIGHTNESS.default
+              ),
             };
 
         // 모든 파티클 위치를 동일한 크기로 정규화 (모델별 바운딩 박스 계산)
@@ -782,36 +771,29 @@ export default function ParticleSystem({
           };
         };
 
-        const rocketNormalized = normalizeWithBounds(
-          rocketData.positions,
+        const gamepadNormalized = normalizeWithBounds(
+          gamepadData.positions,
           targetSize
         );
-        const manNormalized = normalizeWithBounds(
-          manData.positions,
+        const cardNormalized = normalizeWithBounds(
+          cardData.positions,
           targetSize
         );
         const saturnNormalized = normalizeWithBounds(
           saturnData.positions,
           targetSize
         );
-        const telephoneNormalized = normalizeWithBounds(
-          telephoneData.positions,
-          targetSize
-        );
 
-        const rocketPositions = rocketNormalized.positions;
-        const manPositions = manNormalized.positions;
+        const gamepadPositions = gamepadNormalized.positions;
+        const cardPositions = cardNormalized.positions;
         const saturnPositions = saturnNormalized.positions;
-        const telephonePositions = telephoneNormalized.positions;
 
-        // 현재 모델의 Y 범위 저장 (기본값: rocket)
-        const currentMinY = rocketNormalized.minY;
-        const currentMaxY = rocketNormalized.maxY;
+        // 현재 모델의 Y 범위 저장 (기본값: gamepad)
+        const currentMinY = gamepadNormalized.minY;
+        const currentMaxY = gamepadNormalized.maxY;
 
         // 외곽 밝기는 위치 정규화 후에도 유지
-        // 현재 모델에 따라 외곽 밝기 선택 (기본값은 rocket)
-        // TODO: 모델 morphing 시 적절한 외곽 밝기로 전환
-        const currentEdgeBrightness = rocketData.edgeBrightness;
+        const currentEdgeBrightness = gamepadData.edgeBrightness;
 
         console.log(
           "모든 모델 파티클 위치 정규화 완료 (목표 크기:",
@@ -822,6 +804,9 @@ export default function ParticleSystem({
         // 텍스처 인덱스 배열 생성 (위치 기반 규칙적 패턴)
         const textureIndices = new Float32Array(particleCount);
 
+        // 텍스처 개수 (TEXTURE_PATHS 배열 길이에 따라 자동 조정)
+        const textureCount = TEXTURE_PATHS.length;
+
         // 힌트 방식: 파티클별 랜덤 값 생성 (개별 전환 속도용)
         const rnd1Array = new Float32Array(particleCount);
         const rnd2Array = new Float32Array(particleCount);
@@ -829,7 +814,7 @@ export default function ParticleSystem({
         // 위치 기반 해시 함수로 규칙적으로 할당
         const hash = (x: number, y: number, z: number) => {
           const n = x * 73856093 + y * 19349663 + z * 83492791;
-          return Math.abs(Math.floor(n)) % 5;
+          return Math.abs(Math.floor(n)) % textureCount; // 동적으로 텍스처 개수 사용
         };
 
         // 랜덤 값 생성 함수 (위치 기반, 일관성 유지)
@@ -840,9 +825,9 @@ export default function ParticleSystem({
 
         // 각 파티클의 위치를 기반으로 규칙적으로 텍스처 인덱스 및 랜덤 값 할당
         for (let i = 0; i < particleCount; i++) {
-          const x = rocketPositions[i * 3];
-          const y = rocketPositions[i * 3 + 1];
-          const z = rocketPositions[i * 3 + 2];
+          const x = gamepadPositions[i * 3];
+          const y = gamepadPositions[i * 3 + 1];
+          const z = gamepadPositions[i * 3 + 2];
 
           // 위치를 기반으로 한 해시 값으로 텍스처 인덱스 결정 (규칙적이지만 다양함)
           textureIndices[i] = hash(x, y, z);
@@ -864,19 +849,15 @@ export default function ParticleSystem({
 
         bufferGeometry.setAttribute(
           "position",
-          new THREE.Float32BufferAttribute(rocketPositions, 3)
+          new THREE.Float32BufferAttribute(gamepadPositions, 3)
         );
         bufferGeometry.setAttribute(
           "morphTarget1",
-          new THREE.Float32BufferAttribute(manPositions, 3)
+          new THREE.Float32BufferAttribute(cardPositions, 3)
         );
         bufferGeometry.setAttribute(
           "morphTarget2",
           new THREE.Float32BufferAttribute(saturnPositions, 3)
-        );
-        bufferGeometry.setAttribute(
-          "morphTarget3",
-          new THREE.Float32BufferAttribute(telephonePositions, 3)
         );
         bufferGeometry.setAttribute(
           "aTextureIndex",
@@ -921,30 +902,12 @@ export default function ParticleSystem({
 
         // 모델 위치 저장
         modelPositionsRef.current = [
-          rocketPositions,
-          manPositions,
+          gamepadPositions,
+          cardPositions,
           saturnPositions,
-          telephonePositions,
         ];
-        sourcePositionsRef.current = new Float32Array(rocketPositions);
-        currentPositionsRef.current = new Float32Array(rocketPositions);
-
-        // Swarm 위치 초기화
-        swarmPositionsRef.current = new Float32Array(particleCount * 3);
-
-        // 노이즈 함수 초기화
-        noise3DRef.current = createNoise3D();
-        noise4DRef.current = createNoise4D();
-
-        // 모델 위치 저장
-        modelPositionsRef.current = [
-          rocketPositions,
-          manPositions,
-          saturnPositions,
-          telephonePositions,
-        ];
-        sourcePositionsRef.current = new Float32Array(rocketPositions);
-        currentPositionsRef.current = new Float32Array(rocketPositions);
+        sourcePositionsRef.current = new Float32Array(gamepadPositions);
+        currentPositionsRef.current = new Float32Array(gamepadPositions);
 
         // Swarm 위치 초기화
         swarmPositionsRef.current = new Float32Array(particleCount * 3);
@@ -1099,19 +1062,30 @@ export default function ParticleSystem({
       if (progress < 1) {
         morphTimelineRef.current = requestAnimationFrame(animate);
       } else {
-        // 완료
+        // 완료 - 최종 위치를 모든 ref에 저장
         setCurrentModelIndex(nextModelIndex);
+        nextModelIndexRef.current = nextModelIndex;
+
         if (
           currentPositionsRef.current &&
           nextTargetPositions &&
-          sourcePositionsRef.current
+          sourcePositionsRef.current &&
+          meshRef.current?.geometry
         ) {
-          currentPositionsRef.current.set(nextTargetPositions);
-          sourcePositionsRef.current.set(nextTargetPositions);
+          // geometry의 현재 위치를 모든 ref에 복사
+          const finalPositions = meshRef.current.geometry.attributes.position
+            .array as Float32Array;
+          currentPositionsRef.current.set(finalPositions);
+          sourcePositionsRef.current.set(finalPositions);
+
+          console.log("모프 완료 - 위치 업데이트:", {
+            modelIndex: nextModelIndex,
+            modelName: ["Rocket", "Man", "Saturn", "Telephone"][nextModelIndex],
+          });
         }
         setMorphProgress(0);
         setIsMorphing(false);
-        const modelNames = ["Rocket", "Man", "Saturn", "Telephone"];
+        const modelNames = ["Gamepad", "Card", "Saturn"];
         onShapeChange?.(modelNames[nextModelIndex]);
         morphTimelineRef.current = null;
       }
@@ -1221,16 +1195,24 @@ export default function ParticleSystem({
   // 색상 스킴 변경 함수
   const handleColorSchemeChange = useCallback(
     (scheme: ColorScheme) => {
+      console.log("=== 색상 스킴 변경 요청 ===");
+      console.log("스킴:", scheme);
+
       setColorScheme(scheme);
       if (shaderMaterialRef.current) {
         const colorSchemeData = COLOR_SCHEMES[scheme];
+        console.log("색상 데이터:", colorSchemeData);
+
         const colorArray = colorSchemeData.colors;
         const colorCount = colorArray.length;
+        console.log("색상 개수:", colorCount);
+
         // weights가 없으면 균등 분배 (각 1/n)
         const weights =
           "weights" in colorSchemeData && colorSchemeData.weights
             ? colorSchemeData.weights
             : colorArray.map(() => 1.0 / colorCount);
+
         // angle이 없으면 기본값 0 (위에서 아래)
         const angle =
           "angle" in colorSchemeData &&
@@ -1279,11 +1261,61 @@ export default function ParticleSystem({
       particleSystem?: {
         triggerMorph: () => void;
         setColorScheme: (scheme: ColorScheme) => void;
+        setUseTexture: (use: boolean) => void;
+        setMorphProgress: (progress: number) => void;
+        setTargetModelIndex: (index: number) => void;
+        setInfluences: (influences: number[]) => void;
       };
     };
     win.particleSystem = {
       triggerMorph,
       setColorScheme: handleColorSchemeChange,
+      setUseTexture: (use: boolean) => {
+        if (shaderMaterialRef.current) {
+          shaderMaterialRef.current.uniforms.uUseTexture.value = use
+            ? 1.0
+            : 0.0;
+          console.log("텍스처 사용 여부 변경:", use);
+        }
+      },
+      setMorphProgress: () => {
+        // 스크롤 기반 morph progress 설정 (사용하지 않음)
+        // shader의 u_morphTargetInfluences는 setInfluences에서 직접 제어
+      },
+      setTargetModelIndex: (index: number) => {
+        // 목표 모델 인덱스에 따라 shader의 u_morphTargetInfluences 직접 설정
+        if (shaderMaterialRef.current) {
+          const influences = [0, 0, 0, 0];
+
+          // index: 0 = gamepad, 1 = card, 2 = saturn
+          if (index === 0) {
+            // Gamepad (기본 position, influence 없음)
+            influences[0] = 0;
+            influences[1] = 0;
+          } else if (index === 1) {
+            // Card (morphTarget1)
+            influences[0] = 1.0;
+            influences[1] = 0;
+          } else if (index === 2) {
+            // Saturn (morphTarget2)
+            influences[0] = 1.0; // Card를 거쳐야 함
+            influences[1] = 1.0;
+          }
+
+          shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
+            influences;
+        }
+
+        nextModelIndexRef.current = index;
+        setCurrentModelIndex(index);
+      },
+      setInfluences: (influences: number[]) => {
+        // Shader의 u_morphTargetInfluences를 직접 설정
+        if (shaderMaterialRef.current) {
+          shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
+            influences;
+        }
+      },
     };
 
     // 디버그: 시스템이 준비되었는지 확인
@@ -1296,17 +1328,7 @@ export default function ParticleSystem({
     };
   }, [triggerMorph, handleColorSchemeChange]);
 
-  // 클릭 이벤트
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest("#particle-controls")) return;
-      triggerMorph();
-    };
-
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
-  }, [triggerMorph]);
+  // 클릭 이벤트 제거됨 - 버튼을 통해서만 morph 가능
 
   // 정리
   useEffect(() => {

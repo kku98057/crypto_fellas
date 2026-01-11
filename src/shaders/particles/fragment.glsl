@@ -7,6 +7,7 @@ uniform float uColorWeights[10]; // 색상별 비율 (weights가 없으면 균�
 uniform float uColorAngle; // 색상 분배 각도 (라디안)
 uniform float uModelMinY; // 모델의 최소 Y 값 (로컬 좌표 기준)
 uniform float uModelMaxY; // 모델의 최대 Y 값 (로컬 좌표 기준)
+uniform float uUseTexture; // 텍스처 사용 여부 (0.0 = 사용 안 함, 1.0 = 사용)
 uniform sampler2D u_texture1;
 uniform sampler2D u_texture2;
 uniform sampler2D u_texture3;
@@ -100,19 +101,12 @@ vec4 sampleTexture(sampler2D tex, vec2 uv, float angle) {
 }
 
 void main() {
-  // 원형 파티클 생성
-  vec2 center = gl_PointCoord - vec2(0.5);
-  float dist = length(center);
-  
-  // 원형 마스크
-  if (dist > 0.5) {
-    discard;
-  }
-  
   // 텍스처 선택 (vTextureIndex에 따라)
+  // 최대 5개 텍스처 지원, 인덱스에 따라 동적으로 선택
   vec4 texColor = vec4(1.0);
   float texIndex = floor(vTextureIndex + 0.5); // 반올림
   
+  // 텍스처 인덱스에 따라 샘플링
   if (texIndex < 0.5) {
     texColor = sampleTexture(u_texture1, gl_PointCoord, vRotationAngle);
   } else if (texIndex < 1.5) {
@@ -125,18 +119,32 @@ void main() {
     texColor = sampleTexture(u_texture5, gl_PointCoord, vRotationAngle);
   }
   
-  // 부드러운 가장자리
-  float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+  // 텍스처 사용 여부에 따라 알파 처리
+  vec2 center = gl_PointCoord - vec2(0.5);
+  float dist = length(center);
+  float alpha;
+  
+  if (uUseTexture > 0.5) {
+    // 텍스처 사용: 텍스처의 알파 채널 사용
+    alpha = texColor.a;
+    // 텍스처 알파가 너무 낮으면 discard
+    if (alpha < 0.01) {
+      discard;
+    }
+  } else {
+    // 텍스처 미사용: 원형 마스크 사용
+    if (dist > 0.5) {
+      discard;
+    }
+    // 부드러운 가장자리
+    alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+  }
+  
   alpha *= u_opacity;
   
   // 거리 기반 페이드
   float distanceFade = 1.0 - smoothstep(50.0, 200.0, vDistance);
   alpha *= distanceFade;
-  
-  // 외곽 밝기 효과 (외곽 부분이 더 밝게)
-  // 외곽(0.5에 가까울수록)일수록 더 밝게
-  float edgeGlow = smoothstep(0.3, 0.5, dist) * vEdgeBrightness;
-  float edgeBrightness = 1.0 + edgeGlow * (vEdgeBrightness - 1.0);
   
   // 색상 스킴 적용 (모델 로컬 좌표 기준 그라데이션)
   // 각도에 따라 색상 분배 방향 결정
@@ -159,11 +167,30 @@ void main() {
   // 여러 색상 배열에서 색상 가져오기
   vec3 schemeColor = getColorFromArray(normalizedY, uColorCount);
   
-  // 텍스처 색상과 색상 스킴 블렌딩
-  vec3 finalColor = texColor.rgb * schemeColor;
+  // 색상 스킴과 텍스처 블렌딩
+  vec3 baseColor;
+  if (uUseTexture > 0.5) {
+    // 텍스처 사용: 텍스처 색상 * 색상 스킴
+    baseColor = texColor.rgb * schemeColor;
+    // 디버깅: 텍스처 밝기 확인 (텍스처가 너무 어두우면 밝게)
+    baseColor = max(baseColor, schemeColor * 0.5); // 최소한 색상 스킴의 50%는 보장
+  } else {
+    // 텍스처 사용 안 함: 색상 스킴만 사용
+    baseColor = schemeColor;
+  }
   
-  // 외곽 밝기 적용 (외곽 부분을 더 밝게)
-  finalColor *= edgeBrightness;
+  // 너무 어두운 색상은 최소 밝기 보장 (0.5 이상으로 높임)
+  baseColor = max(baseColor, vec3(0.5));
+  
+  // 외곽 밝기 적용 (vEdgeBrightness 사용)
+  // center와 dist는 위에서 이미 계산됨
+  float edgeGlowFactor = smoothstep(0.0, 0.5, dist); // 0.0~0.5 사이에서 0~1로 보간
+  float minBrightness = max(1.0, vEdgeBrightness * 0.7); // 최소 70% 밝기
+  float edgeBrightness = mix(minBrightness, vEdgeBrightness, edgeGlowFactor);
+  
+  // 가산 밝기 (어두운 색상에도 일정한 밝기 추가)
+  float additiveGlow = (vEdgeBrightness - 1.0) * edgeGlowFactor * 0.5; // 외곽 부분에 추가 밝기
+  vec3 finalColor = baseColor * edgeBrightness + vec3(additiveGlow); // 곱셈 + 가산
   
   // Scatter 효과 (벚꽃 흩어짐 시 색상 변화)
   if (vScatterAmount > 0.01) {
@@ -171,6 +198,6 @@ void main() {
     finalColor = mix(finalColor, finalColor * vec3(1.5, 1.2, 0.8), vScatterAmount * 0.5);
   }
   
-  gl_FragColor = vec4(finalColor, alpha * texColor.a);
+  gl_FragColor = vec4(finalColor, alpha);
 }
 

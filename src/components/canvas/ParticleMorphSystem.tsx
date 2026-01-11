@@ -1,32 +1,11 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { createNoise3D, createNoise4D } from "simplex-noise";
 import { SHAPES } from "../../utils/shapeGenerators";
 import vertexShader from "../../shaders/particles/morph-vertex.glsl?raw";
 import fragmentShader from "../../shaders/particles/morph-fragment.glsl?raw";
-
-/**
- * 색상 스킴 정의
- */
-const COLOR_SCHEMES = {
-  fire: {
-    color1: new THREE.Color(0xff4500), // 주황색
-    color2: new THREE.Color(0xffcc00), // 노란색
-  },
-  neon: {
-    color1: new THREE.Color(0xff00ff), // 마젠타
-    color2: new THREE.Color(0x00ffff), // 시안
-  },
-  nature: {
-    color1: new THREE.Color(0x00ff00), // 초록색
-    color2: new THREE.Color(0x66ffcc), // 청록색
-  },
-  rainbow: {
-    color1: new THREE.Color(0xff0000), // 빨강
-    color2: new THREE.Color(0x0000ff), // 파랑
-  },
-} as const;
+import { COLOR_SCHEMES } from "./ParticleSystem"; // import type 제거
 
 type ColorScheme = keyof typeof COLOR_SCHEMES;
 
@@ -68,7 +47,6 @@ export default function ParticleMorphSystem({
 }: ParticleMorphSystemProps) {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const { gl } = useThree();
 
   // 상태
   const [currentShapeIndex, setCurrentShapeIndex] = useState(0);
@@ -112,9 +90,12 @@ export default function ParticleMorphSystem({
 
   // Shader Material 생성
   const shaderMaterial = useMemo(() => {
-    if (!currentPositionsRef.current) return null;
+    const colorSchemeData = COLOR_SCHEMES[colorScheme];
+    const colorArray = colorSchemeData.colors;
 
-    const colors = COLOR_SCHEMES[colorScheme];
+    // 색상이 1개만 있으면 두 번 사용, 2개 이상이면 첫 번째와 두 번째 사용
+    const color1 = colorArray[0];
+    const color2 = colorArray.length > 1 ? colorArray[1] : colorArray[0];
 
     return new THREE.ShaderMaterial({
       uniforms: {
@@ -125,8 +106,8 @@ export default function ParticleMorphSystem({
         uSwirlFactor: { value: CONFIG.swirlFactor },
         uIdleFlowStrength: { value: CONFIG.idleFlowStrength },
         uIdleFlowSpeed: { value: CONFIG.idleFlowSpeed },
-        uColor1: { value: colors.color1 },
-        uColor2: { value: colors.color2 },
+        uColor1: { value: color1 },
+        uColor2: { value: color2 },
         uBloomThreshold: { value: CONFIG.bloomThreshold },
       },
       vertexShader,
@@ -184,7 +165,12 @@ export default function ParticleMorphSystem({
 
   // 모프 트리거 함수
   const triggerMorph = useCallback(() => {
-    if (isMorphing || !currentPositionsRef.current || !sourcePositionsRef.current) return;
+    if (
+      isMorphing ||
+      !currentPositionsRef.current ||
+      !sourcePositionsRef.current
+    )
+      return;
 
     setIsMorphing(true);
     const nextShapeIndex = (currentShapeIndex + 1) % SHAPES.length;
@@ -204,11 +190,13 @@ export default function ParticleMorphSystem({
         targetVec.fromArray(nextTargetPositions, i3);
         swarmVec.lerpVectors(sourceVec, targetVec, 0.5);
 
-        const offsetDir = tempVec.set(
-          noise3DRef.current(i * 0.05, 10, 10),
-          noise3DRef.current(20, i * 0.05, 20),
-          noise3DRef.current(30, 30, i * 0.05)
-        ).normalize();
+        const offsetDir = tempVec
+          .set(
+            noise3DRef.current(i * 0.05, 10, 10),
+            noise3DRef.current(20, i * 0.05, 20),
+            noise3DRef.current(30, 30, i * 0.05)
+          )
+          .normalize();
 
         const distFactor =
           sourceVec.distanceTo(targetVec) * 0.1 + centerOffsetAmount;
@@ -233,8 +221,7 @@ export default function ParticleMorphSystem({
       const t = progress;
       const t2 = t * t;
       const t3 = t2 * t;
-      const easeProgress =
-        3 * t2 - 2 * t3 + (t3 - 2 * t2 + t) * 0.4; // 근사치
+      const easeProgress = 3 * t2 - 2 * t3 + (t3 - 2 * t2 + t) * 0.4; // 근사치
 
       setMorphProgress(easeProgress);
 
@@ -243,7 +230,11 @@ export default function ParticleMorphSystem({
       } else {
         // 완료
         setCurrentShapeIndex(nextShapeIndex);
-        if (currentPositionsRef.current && nextTargetPositions) {
+        if (
+          currentPositionsRef.current &&
+          sourcePositionsRef.current &&
+          nextTargetPositions
+        ) {
           currentPositionsRef.current.set(nextTargetPositions);
           sourcePositionsRef.current.set(nextTargetPositions);
         }
@@ -303,11 +294,13 @@ export default function ParticleMorphSystem({
       // Swirl 효과
       if (currentSwirl > 0.01) {
         tempVec.subVectors(bezPos, sourceVec);
-        swirlAxis.set(
-          noise3DRef.current(i * 0.02, elapsedTime * 0.1, 0),
-          noise3DRef.current(0, i * 0.02, elapsedTime * 0.1 + 5),
-          noise3DRef.current(elapsedTime * 0.1 + 10, 0, i * 0.02)
-        ).normalize();
+        swirlAxis
+          .set(
+            noise3DRef.current(i * 0.02, elapsedTime * 0.1, 0),
+            noise3DRef.current(0, i * 0.02, elapsedTime * 0.1 + 5),
+            noise3DRef.current(elapsedTime * 0.1 + 10, 0, i * 0.02)
+          )
+          .normalize();
         tempVec.applyAxisAngle(
           swirlAxis,
           currentSwirl * (0.5 + Math.random() * 0.5)
@@ -405,14 +398,14 @@ export default function ParticleMorphSystem({
   };
 
   // 애니메이션 루프
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!pointsRef.current?.geometry || !materialRef.current) return;
 
     const elapsedTime = state.clock.getElapsedTime();
     const positions = pointsRef.current.geometry.attributes.position
       .array as Float32Array;
-    const effectStrengths = pointsRef.current.geometry.attributes.aEffectStrength
-      .array as Float32Array;
+    const effectStrengths = pointsRef.current.geometry.attributes
+      .aEffectStrength.array as Float32Array;
 
     // Material uniforms 업데이트
     materialRef.current.uniforms.uTime.value = elapsedTime;
@@ -432,9 +425,15 @@ export default function ParticleMorphSystem({
   // 색상 스킴 변경
   useEffect(() => {
     if (!materialRef.current) return;
-    const colors = COLOR_SCHEMES[colorScheme];
-    materialRef.current.uniforms.uColor1.value = colors.color1;
-    materialRef.current.uniforms.uColor2.value = colors.color2;
+    const colorSchemeData = COLOR_SCHEMES[colorScheme];
+    const colorArray = colorSchemeData.colors;
+
+    // 색상이 1개만 있으면 두 번 사용, 2개 이상이면 첫 번째와 두 번째 사용
+    const color1 = colorArray[0];
+    const color2 = colorArray.length > 1 ? colorArray[1] : colorArray[0];
+
+    materialRef.current.uniforms.uColor1.value = color1;
+    materialRef.current.uniforms.uColor2.value = color2;
     onColorSchemeChange?.(colorScheme);
   }, [colorScheme, onColorSchemeChange]);
 
@@ -449,7 +448,7 @@ export default function ParticleMorphSystem({
 
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
-  }, [isMorphing, currentShapeIndex]);
+  }, [triggerMorph]);
 
   // 정리
   useEffect(() => {
@@ -478,7 +477,9 @@ export default function ParticleMorphSystem({
   // 전역 노출 (선택적)
   useEffect(() => {
     if (systemRef.current) {
-      (window as Window & { particleMorphSystem?: typeof systemRef.current }).particleMorphSystem = systemRef.current;
+      (
+        window as Window & { particleMorphSystem?: typeof systemRef.current }
+      ).particleMorphSystem = systemRef.current;
     }
   }, [currentShapeIndex, colorScheme]);
 
@@ -492,4 +493,3 @@ export default function ParticleMorphSystem({
     </>
   );
 }
-
