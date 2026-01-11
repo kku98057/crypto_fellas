@@ -234,7 +234,7 @@ export default function Home() {
         }}
       >
         <Canvas
-          camera={{ position: [0, 0, 10], fov: 75 }}
+          camera={{ position: [0, 0, 5], fov: 75 }}
           gl={{ antialias: true, alpha: true }}
           style={{ background: "#000000" }}
         >
@@ -253,7 +253,7 @@ export default function Home() {
               dampingFactor={0.05}
               autoRotate
               autoRotateSpeed={0.5}
-              enablePan={false}
+              enablePan={true}
               enableZoom={true}
               mouseButtons={{
                 LEFT: THREE.MOUSE.ROTATE,
@@ -267,7 +267,7 @@ export default function Home() {
       </div>
 
       {/* 스크롤 가능한 섹션들 (각 섹션 = 1개 모델) */}
-      <div style={{ position: "relative", zIndex: 1, pointerEvents: "none" }}>
+      {/* <div style={{ position: "relative", zIndex: 1, pointerEvents: "none" }}>
         {MODEL_NAMES.map((modelName, index) => (
           <div
             key={index}
@@ -295,7 +295,7 @@ export default function Home() {
             </div>
           </div>
         ))}
-      </div>
+      </div> */}
 
       {/* UI 요소들 */}
       <div

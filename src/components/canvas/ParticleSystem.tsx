@@ -182,16 +182,14 @@ class CreateParticlePositions {
               }
             }
 
-            // 디버그 정보 출력
-            if (import.meta.env.DEV && meshName) {
-              console.log(
-                `Mesh "${meshName}": ${
-                  positionAttribute.count
-                } vertices, 밀도 가중치: ${densityWeight.toFixed(
-                  2
-                )}, 외곽 밝기: ${edgeBrightness.toFixed(2)}`
-              );
-            }
+            // 디버그 정보 출력 (항상 출력)
+            console.log(
+              `📦 Mesh "${meshName || "(이름 없음)"}": ${
+                positionAttribute.count
+              } vertices, 밀도: ${densityWeight.toFixed(
+                2
+              )}, 밝기: ${edgeBrightness.toFixed(2)}`
+            );
           }
         }
       }
@@ -210,23 +208,67 @@ class CreateParticlePositions {
     // 요청된 개수만큼 파티클 선택 (균등 분포)
     const positions = new Float32Array(this.count * 3);
     const edgeBrightness = new Float32Array(this.count);
-    const step = Math.max(1, Math.floor(vertices.length / this.count));
 
-    for (let i = 0; i < this.count; i++) {
-      const index = Math.min(
-        Math.floor(i * step) + Math.floor(Math.random() * step),
-        vertices.length - 1
+    if (vertices.length >= this.count) {
+      // vertices가 충분히 많으면 균등 샘플링 (실수 step 사용)
+      const step = vertices.length / this.count; // 실수로 계산
+
+      for (let i = 0; i < this.count; i++) {
+        // 가상 인덱스를 실수로 계산하여 전체 범위 커버
+        const virtualIndex = i * step;
+        const baseIndex = Math.floor(virtualIndex);
+        // 다음 step 범위 내에서 랜덤 오프셋 추가
+        const randomOffset = Math.floor(
+          Math.random() * Math.max(1, Math.ceil(step))
+        );
+        const index = Math.min(baseIndex + randomOffset, vertices.length - 1);
+
+        const vertex = vertices[index];
+        positions[i * 3] = vertex.position.x;
+        positions[i * 3 + 1] = vertex.position.y;
+        positions[i * 3 + 2] = vertex.position.z;
+        edgeBrightness[i] = vertex.edgeBrightness;
+      }
+    } else {
+      // vertices가 부족하면 순환하며 샘플링
+      console.warn(
+        `⚠️ 파티클(${this.count})이 vertices(${vertices.length})보다 많아 순환 샘플링합니다.`
       );
-      const vertex = vertices[index];
-      positions[i * 3] = vertex.position.x;
-      positions[i * 3 + 1] = vertex.position.y;
-      positions[i * 3 + 2] = vertex.position.z;
-      edgeBrightness[i] = vertex.edgeBrightness;
+
+      for (let i = 0; i < this.count; i++) {
+        // 전체를 균등하게 분배하여 순환
+        const virtualIndex = (i / this.count) * vertices.length;
+        const index = Math.floor(virtualIndex) % vertices.length;
+
+        const vertex = vertices[index];
+        positions[i * 3] = vertex.position.x;
+        positions[i * 3 + 1] = vertex.position.y;
+        positions[i * 3 + 2] = vertex.position.z;
+        edgeBrightness[i] = vertex.edgeBrightness;
+      }
     }
 
+    const actualStep = vertices.length / this.count;
     console.log(
-      `모델에서 ${vertices.length}개 vertex (이름 기반 밀도 적용) 중 ${this.count}개 파티클 생성`
+      `✅ 모델에서 ${vertices.length}개 vertex (이름 기반 밀도 적용) 중 ${this.count}개 파티클 생성`,
+      `| Step: ${actualStep.toFixed(2)} (${
+        vertices.length >= this.count ? "균등 샘플링" : "순환 샘플링"
+      })`
     );
+
+    // 디버깅: 생성된 파티클의 분포 확인
+    if (vertices.length < this.count) {
+      const uniqueIndices = new Set();
+      for (let i = 0; i < this.count; i++) {
+        const virtualIndex = (i / this.count) * vertices.length;
+        const index = Math.floor(virtualIndex) % vertices.length;
+        uniqueIndices.add(index);
+      }
+      console.log(
+        `   → 실제 사용된 고유 vertices: ${uniqueIndices.size}/${vertices.length}`
+      );
+    }
+
     return { positions, edgeBrightness };
   }
 }
@@ -688,7 +730,7 @@ export default function ParticleSystem({
         ];
 
         // 파티클 생성 (모델이 없으면 기본 형태 사용)
-        const particleCount = 8000;
+        const particleCount = 12000;
         const shapeSize = 10; // 기본 형태도 동일한 크기로
 
         // Gamepad 모델 파티클 생성
