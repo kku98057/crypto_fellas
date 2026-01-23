@@ -324,16 +324,12 @@ export default function Home() {
         autoSplit: true,
       });
       const mm = gsap.matchMedia();
-      // 1. PC (1440px 이상)
-      mm.add("(min-width: 1440px)", () => {
+      // 1. PC (1024 이상)
+      mm.add("(min-width: 1025px)", () => {
         pcAnimation();
       });
 
-      // 2. Tablet (1024px ~ 1439px)
-      mm.add("(min-width: 769px) and (max-width: 1439px)", () => {
-        pcAnimation();
-      });
-      mm.add("(max-width: 768px)", () => {
+      mm.add("(max-width: 1024px)", () => {
         mobileAnimation();
       });
 
