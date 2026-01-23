@@ -366,6 +366,13 @@ export default function ParticleSystem({
   const wrapperRef = useRef<THREE.Group>(null);
   const shaderMaterialRef = useRef<THREE.ShaderMaterial | null>(null);
 
+  // GSAP 애니메이션을 위한 직접 접근 가능한 객체들
+  const animatableRef = useRef({
+    rotation: { x: 0, y: 0, z: 0 },
+    position: { x: 0, y: 0, z: 0 },
+    influences: [0, 0, 0, 0, 0],
+  });
+
   // 모프 상태
   const [morphProgress, setMorphProgress] = useState(0);
   const [isMorphing, setIsMorphing] = useState(false);
@@ -1301,9 +1308,18 @@ export default function ParticleSystem({
         setInfluences: (influences: number[]) => void;
         setScale: (scale: number) => void;
         setScatter: (scatter: number) => void;
-        setModelOffset: (offset: [number, number, number]) => void;
+        setModelOffset: (
+          offset:
+            | [number, number, number]
+            | { x?: number; y?: number; z?: number }
+        ) => void;
         setOpacity: (opacity: number) => void;
         setRotation: (rotation: [number, number, number]) => void;
+        animatable: {
+          rotation: { x: number; y: number; z: number };
+          position: { x: number; y: number; z: number };
+          influences: number[];
+        };
       };
     };
     win.particleSystem = {
@@ -1315,14 +1331,38 @@ export default function ParticleSystem({
           shaderMaterialRef.current.uniforms.uOpacity.value = opacity;
         }
       },
-      setRotation: (rotation: [number, number, number]) => {
-        setRotation(rotation);
+      setRotation: (
+        rotation:
+          | [number, number, number]
+          | { x?: number; y?: number; z?: number }
+      ) => {
         if (wrapperRef.current) {
-          wrapperRef.current.rotation.set(
-            rotation[0],
-            rotation[1],
-            rotation[2]
-          );
+          // 객체 형태로 전달된 경우 (개별 축 설정)
+          if (typeof rotation === "object" && !Array.isArray(rotation)) {
+            const currentX = wrapperRef.current.rotation.x;
+            const currentY = wrapperRef.current.rotation.y;
+            const currentZ = wrapperRef.current.rotation.z;
+
+            const newX = rotation.x !== undefined ? rotation.x : currentX;
+            const newY = rotation.y !== undefined ? rotation.y : currentY;
+            const newZ = rotation.z !== undefined ? rotation.z : currentZ;
+
+            wrapperRef.current.rotation.set(newX, newY, newZ);
+            // animatableRef도 동기화
+            animatableRef.current.rotation.x = newX;
+            animatableRef.current.rotation.y = newY;
+            animatableRef.current.rotation.z = newZ;
+            setRotation([newY, newX, newZ]); // 상태 업데이트 (순서 주의)
+          } else {
+            // 배열 형태로 전달된 경우 (전체 설정)
+            const [x, y, z] = rotation as [number, number, number];
+            wrapperRef.current.rotation.set(x, y, z);
+            // animatableRef도 동기화
+            animatableRef.current.rotation.x = x;
+            animatableRef.current.rotation.y = y;
+            animatableRef.current.rotation.z = z;
+            setRotation([y, x, z]); // 상태 업데이트 (순서 주의)
+          }
         }
       },
       setUseTexture: (use: boolean) => {
@@ -1387,8 +1427,11 @@ export default function ParticleSystem({
         if (shaderMaterialRef.current) {
           shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
             influences;
+          // animatableRef도 동기화
+          animatableRef.current.influences = [...influences];
         }
       },
+      animatable: animatableRef.current,
       setScale: (scale: number) => {
         setParticleScale(scale);
         if (shaderMaterialRef.current) {
@@ -1401,10 +1444,38 @@ export default function ParticleSystem({
           shaderMaterialRef.current.uniforms.uScatterAmount.value = scatter;
         }
       },
-      setModelOffset: (offset: [number, number, number]) => {
-        setModelOffset(offset);
+      setModelOffset: (
+        offset:
+          | [number, number, number]
+          | { x?: number; y?: number; z?: number }
+      ) => {
         if (wrapperRef.current) {
-          wrapperRef.current.position.set(offset[0], offset[1], offset[2]);
+          // 객체 형태로 전달된 경우 (개별 축 설정)
+          if (typeof offset === "object" && !Array.isArray(offset)) {
+            const currentX = wrapperRef.current.position.x;
+            const currentY = wrapperRef.current.position.y;
+            const currentZ = wrapperRef.current.position.z;
+
+            const newX = offset.x !== undefined ? offset.x : currentX;
+            const newY = offset.y !== undefined ? offset.y : currentY;
+            const newZ = offset.z !== undefined ? offset.z : currentZ;
+
+            wrapperRef.current.position.set(newX, newY, newZ);
+            // animatableRef도 동기화
+            animatableRef.current.position.x = newX;
+            animatableRef.current.position.y = newY;
+            animatableRef.current.position.z = newZ;
+            setModelOffset([newY, newX, newZ]); // 상태 업데이트 (순서 주의)
+          } else {
+            // 배열 형태로 전달된 경우 (전체 설정)
+            const [x, y, z] = offset as [number, number, number];
+            wrapperRef.current.position.set(x, y, z);
+            // animatableRef도 동기화
+            animatableRef.current.position.x = x;
+            animatableRef.current.position.y = y;
+            animatableRef.current.position.z = z;
+            setModelOffset([y, x, z]); // 상태 업데이트 (순서 주의)
+          }
         }
       },
     };
@@ -1443,6 +1514,25 @@ export default function ParticleSystem({
       shaderMaterialRef.current.uniforms.uNoiseStrength.value = isMorphing
         ? MORPH_CONFIG.noiseMaxStrength * Math.sin(morphProgress * Math.PI)
         : 0;
+    }
+
+    // animatableRef의 값이 변경되면 실제 객체에 반영
+    if (wrapperRef.current) {
+      wrapperRef.current.rotation.set(
+        animatableRef.current.rotation.x,
+        animatableRef.current.rotation.y,
+        animatableRef.current.rotation.z
+      );
+      wrapperRef.current.position.set(
+        animatableRef.current.position.x,
+        animatableRef.current.position.y,
+        animatableRef.current.position.z
+      );
+    }
+
+    if (shaderMaterialRef.current) {
+      shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
+        animatableRef.current.influences;
     }
 
     // 모프 중일 때 위치 업데이트

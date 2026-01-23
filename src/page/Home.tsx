@@ -52,9 +52,18 @@ interface ParticleSystemRef {
   setInfluences: (influences: number[]) => void;
   setScale: (scale: number) => void;
   setScatter: (scatter: number) => void;
-  setModelOffset: (offset: [number, number, number]) => void;
-  setRotation: (rotation: [number, number, number]) => void; // 모델 회전
-  setOpacity: (opacity: number) => void; // 투명도\
+  setModelOffset: (
+    offset: [number, number, number] | { x?: number; y?: number; z?: number }
+  ) => void; // 모델 위치 (배열 또는 객체)
+  setRotation: (
+    rotation: [number, number, number] | { x?: number; y?: number; z?: number }
+  ) => void; // 모델 회전 (배열 또는 객체)
+  setOpacity: (opacity: number) => void; // 투명도
+  animatable: {
+    rotation: { x: number; y: number; z: number };
+    position: { x: number; y: number; z: number };
+    influences: number[];
+  };
 }
 
 const MODEL_NAMES = ["Gamepad", "Card"]; // 2개 섹션만 사용
@@ -85,6 +94,7 @@ export default function Home() {
   const heroContentsTextRef = useRef<HTMLParagraphElement>(null);
   const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const heroContentsListRef = useRef<HTMLUListElement>(null);
+  const currentRotationRef = useRef<[number, number, number]>([0, 0, 0]); // 현재 rotation 상태 추적
   const [postProcessingConfig, setPostProcessingConfig] =
     useState<PostProcessingConfig>({
       bloom: {
@@ -288,7 +298,6 @@ export default function Home() {
             ease: "none",
             onUpdate: function () {
               const progress = this.progress();
-              console.log(progress);
               // 산포: 1.0 → 0.0
               systemRef.current?.setScatter?.(3.0 - progress * 3);
               // 크기: (기본 크기 * 5) → 기본 크기
@@ -371,144 +380,144 @@ export default function Home() {
     { dependencies: [isLoading] }
   );
 
-  // GSAP ScrollTrigger 설정 (Intro 완료 후에만 작동)
-  useEffect(() => {
-    if (!introComplete || !systemRef.current) return;
+  // // GSAP ScrollTrigger 설정 (Intro 완료 후에만 작동)
+  // useEffect(() => {
+  //   if (!introComplete || !systemRef.current) return;
 
-    const sections = sectionsRef.current;
+  //   const sections = sectionsRef.current;
 
-    // PC/Mobile에 따른 애니메이션 설정
-    const animConfig = isMobile
-      ? {
-          // Mobile 설정
-          cameraZoomStart: 12, // Canvas 초기 카메라 위치와 일치
-          cameraZoomEnd: 10,
-          offsetX: 0.8,
-          offsetY: 0.5,
-          scrubSpeed: 1, // Pin에서는 1로 통일
-        }
-      : {
-          // PC 설정
-          cameraZoomStart: 12, // Canvas 초기 카메라 위치와 일치
-          cameraZoomEnd: 8,
-          offsetX: 1.5,
-          offsetY: 0.8,
-          scrubSpeed: 1,
-        };
+  //   // PC/Mobile에 따른 애니메이션 설정
+  //   const animConfig = isMobile
+  //     ? {
+  //         // Mobile 설정
+  //         cameraZoomStart: 12, // Canvas 초기 카메라 위치와 일치
+  //         cameraZoomEnd: 10,
+  //         offsetX: 0.8,
+  //         offsetY: 0.5,
+  //         scrubSpeed: 1, // Pin에서는 1로 통일
+  //       }
+  //     : {
+  //         // PC 설정
+  //         cameraZoomStart: 12, // Canvas 초기 카메라 위치와 일치
+  //         cameraZoomEnd: 8,
+  //         offsetX: 1.5,
+  //         offsetY: 0.8,
+  //         scrubSpeed: 1,
+  //       };
 
-    console.log(
-      `정밀 스크롤 애니메이션 설정 (${isMobile ? "Mobile" : "PC"} 모드)`
-    );
+  //   console.log(
+  //     `정밀 스크롤 애니메이션 설정 (${isMobile ? "Mobile" : "PC"} 모드)`
+  //   );
 
-    const triggers: ScrollTrigger[] = [];
+  //   const triggers: ScrollTrigger[] = [];
 
-    // 섹션 0: GamePad 유지 (Intro 후 시작점) - Pin
-    if (sections[0]) {
-      const trigger0 = ScrollTrigger.create({
-        trigger: sections[0],
-        start: "top top",
-        end: "+=100%",
-        pin: true,
-        scrub: animConfig.scrubSpeed,
-        id: "section-0-gamepad",
-        anticipatePin: 1,
-        onUpdate: (self) => {
-          if (systemRef.current) {
-            // 정밀한 스크롤 진행도
-            const scrollProgress = self.progress;
+  //   // 섹션 0: GamePad 유지 (Intro 후 시작점) - Pin
+  //   if (sections[0]) {
+  //     const trigger0 = ScrollTrigger.create({
+  //       trigger: sections[0],
+  //       start: "top top",
+  //       end: "+=100%",
+  //       pin: true,
+  //       scrub: animConfig.scrubSpeed,
+  //       id: "section-0-gamepad",
+  //       anticipatePin: 1,
+  //       onUpdate: (self) => {
+  //         if (systemRef.current) {
+  //           // 정밀한 스크롤 진행도
+  //           const scrollProgress = self.progress;
 
-            // GamePad 상태 유지
-            systemRef.current.setInfluences?.([0, 0]);
-            systemRef.current.setScatter?.(0);
-            systemRef.current.setScale?.(PARTICLE_SIZE_SCALE);
-            systemRef.current.setModelOffset?.([0, 0, 0]);
+  //           // GamePad 상태 유지
+  //           systemRef.current.setInfluences?.([0, 0]);
+  //           systemRef.current.setScatter?.(0);
+  //           systemRef.current.setScale?.(PARTICLE_SIZE_SCALE);
+  //           systemRef.current.setModelOffset?.([0, 0, 0]);
 
-            if (cameraRef.current) {
-              cameraRef.current.position.z = animConfig.cameraZoomStart;
-            }
+  //           if (cameraRef.current) {
+  //             cameraRef.current.position.z = animConfig.cameraZoomStart;
+  //           }
 
-            setCurrentModelIndex(0);
+  //           setCurrentModelIndex(0);
 
-            // 디버깅용
-            if (scrollProgress === 0 || scrollProgress === 1) {
-              console.log(
-                `섹션 0 진행도: ${(scrollProgress * 100).toFixed(1)}%`
-              );
-            }
-          }
-        },
-        onEnter: () => console.log("📍 섹션 0 진입: GamePad"),
-        onLeave: () => console.log("📍 섹션 0 이탈"),
-        onEnterBack: () => console.log("📍 섹션 0 재진입"),
-      });
-      triggers.push(trigger0);
-    }
+  //           // 디버깅용
+  //           if (scrollProgress === 0 || scrollProgress === 1) {
+  //             console.log(
+  //               `섹션 0 진행도: ${(scrollProgress * 100).toFixed(1)}%`
+  //             );
+  //           }
+  //         }
+  //       },
+  //       onEnter: () => console.log("📍 섹션 0 진입: GamePad"),
+  //       onLeave: () => console.log("📍 섹션 0 이탈"),
+  //       onEnterBack: () => console.log("📍 섹션 0 재진입"),
+  //     });
+  //     triggers.push(trigger0);
+  //   }
 
-    // 섹션 1: GamePad → Card - 연속 애니메이션 (점프 없이)
-    if (sections[1]) {
-      const trigger1 = ScrollTrigger.create({
-        trigger: sections[1],
-        start: "top top",
-        end: "+=500%",
-        pin: true,
-        scrub: animConfig.scrubSpeed,
-        id: "section-1-smooth",
-        anticipatePin: 1,
-        invalidateOnRefresh: true,
-        onUpdate: (self) => {
-          const progress = self.progress; // 0 ~ 1
+  //   // 섹션 1: GamePad → Card - 연속 애니메이션 (점프 없이)
+  //   if (sections[1]) {
+  //     const trigger1 = ScrollTrigger.create({
+  //       trigger: sections[1],
+  //       start: "top top",
+  //       end: "+=500%",
+  //       pin: true,
+  //       scrub: animConfig.scrubSpeed,
+  //       id: "section-1-smooth",
+  //       anticipatePin: 1,
+  //       invalidateOnRefresh: true,
+  //       onUpdate: (self) => {
+  //         const progress = self.progress; // 0 ~ 1
 
-          if (systemRef.current && cameraRef.current) {
-            // === 부드러운 연속 애니메이션 (점프 없이) ===
+  //         if (systemRef.current && cameraRef.current) {
+  //           // === 부드러운 연속 애니메이션 (점프 없이) ===
 
-            // Morphing: 0 → 1.0 (연속적)
-            systemRef.current.setInfluences?.([progress, 0]);
+  //           // Morphing: 0 → 1.0 (연속적)
+  //           systemRef.current.setInfluences?.([progress, 0]);
 
-            // Camera Zoom: 30% 이후부터 시작
-            let cameraZ = animConfig.cameraZoomStart;
-            if (progress > 0.3) {
-              const cameraProgress = (progress - 0.3) / 0.7; // 30~100%
-              const easedCameraProgress =
-                gsap.parseEase("power2.inOut")(cameraProgress);
-              cameraZ =
-                animConfig.cameraZoomStart -
-                easedCameraProgress *
-                  (animConfig.cameraZoomStart - animConfig.cameraZoomEnd);
-            }
-            cameraRef.current.position.z = cameraZ;
+  //           // Camera Zoom: 30% 이후부터 시작
+  //           let cameraZ = animConfig.cameraZoomStart;
+  //           if (progress > 0.3) {
+  //             const cameraProgress = (progress - 0.3) / 0.7; // 30~100%
+  //             const easedCameraProgress =
+  //               gsap.parseEase("power2.inOut")(cameraProgress);
+  //             cameraZ =
+  //               animConfig.cameraZoomStart -
+  //               easedCameraProgress *
+  //                 (animConfig.cameraZoomStart - animConfig.cameraZoomEnd);
+  //           }
+  //           cameraRef.current.position.z = cameraZ;
 
-            // Model Move: 50% 이후부터 시작
-            let offsetX = 0;
-            let offsetY = 0;
-            if (progress > 0.5) {
-              const moveProgress = (progress - 0.5) / 0.5; // 50~100%
-              const easedMoveProgress =
-                gsap.parseEase("power2.out")(moveProgress);
-              offsetX = easedMoveProgress * animConfig.offsetX;
-              offsetY = easedMoveProgress * animConfig.offsetY;
-            }
-            systemRef.current.setModelOffset?.([offsetX, offsetY, 0]);
+  //           // Model Move: 50% 이후부터 시작
+  //           let offsetX = 0;
+  //           let offsetY = 0;
+  //           if (progress > 0.5) {
+  //             const moveProgress = (progress - 0.5) / 0.5; // 50~100%
+  //             const easedMoveProgress =
+  //               gsap.parseEase("power2.out")(moveProgress);
+  //             offsetX = easedMoveProgress * animConfig.offsetX;
+  //             offsetY = easedMoveProgress * animConfig.offsetY;
+  //           }
+  //           systemRef.current.setModelOffset?.([offsetX, offsetY, 0]);
 
-            // 공통 설정
-            systemRef.current.setScatter?.(0);
-            systemRef.current.setScale?.(PARTICLE_SIZE_SCALE);
-            setCurrentModelIndex(1);
-          }
-        },
-        onEnter: () => console.log("📍 섹션 1 진입"),
-        onLeave: () => console.log("📍 섹션 1 완료"),
-      });
-      triggers.push(trigger1);
-    }
+  //           // 공통 설정
+  //           systemRef.current.setScatter?.(0);
+  //           systemRef.current.setScale?.(PARTICLE_SIZE_SCALE);
+  //           setCurrentModelIndex(1);
+  //         }
+  //       },
+  //       onEnter: () => console.log("📍 섹션 1 진입"),
+  //       onLeave: () => console.log("📍 섹션 1 완료"),
+  //     });
+  //     triggers.push(trigger1);
+  //   }
 
-    // ScrollTrigger 리프레시 (반응형 대응)
-    ScrollTrigger.refresh();
+  //   // ScrollTrigger 리프레시 (반응형 대응)
+  //   ScrollTrigger.refresh();
 
-    return () => {
-      triggers.forEach((trigger) => trigger.kill());
-      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-    };
-  }, []);
+  //   return () => {
+  //     triggers.forEach((trigger) => trigger.kill());
+  //     ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+  //   };
+  // }, []);
 
   function pcAnimation() {
     // 화면 크기별 애니메이션 설정
@@ -553,12 +562,16 @@ export default function Home() {
 
               // x축으로 30도 회전 (0도 → 30도)
               const rotationX = progress * 30 * (Math.PI / 180); // 라디안 변환
-              systemRef.current.setRotation?.([rotationX, 0, 0]);
+              const rotationY = progress * 360 * (Math.PI / 180); // 라디안 변환
+              currentRotationRef.current = [rotationX, rotationY, 0]; // 상태 업데이트
+              systemRef.current.setRotation?.([rotationX, rotationY, 0]);
             }
           },
         },
         0.5
       );
+    if (!systemRef.current) return;
+
     const aboutAnimation = gsap
       .timeline({
         scrollTrigger: {
@@ -568,6 +581,22 @@ export default function Home() {
           scrub: 1,
         },
       })
+      .to(
+        systemRef.current.animatable.rotation,
+        {
+          y: 720 * (Math.PI / 180), // 720도 회전
+          duration: 6,
+        },
+        0
+      )
+      .to(
+        systemRef.current.animatable.influences,
+        {
+          "1": 1, // 두 번째 인덱스를 1로
+          duration: 6,
+        },
+        0
+      )
       .from(
         sectionsRef.current[1].querySelector(`.${styles.title}`),
         {
