@@ -12,8 +12,8 @@ import { PARTICLE_SIZE_SCALE } from "../enum/ParticlesEnum";
 import styles from "./home.module.scss";
 import Button from "../components/Button";
 import { SplitText } from "gsap/SplitText";
-
 // GSAP ScrollTrigger 등록
+const SCRUB = 0.5;
 gsap.registerPlugin(ScrollTrigger);
 gsap.registerPlugin(SplitText);
 interface PostProcessingConfig {
@@ -44,28 +44,6 @@ interface PostProcessingConfig {
   };
 }
 
-interface ParticleSystemRef {
-  triggerMorph: () => void;
-  setColorScheme: (scheme: ColorScheme) => void;
-  setMorphProgress: (progress: number) => void;
-  setTargetModelIndex: (index: number) => void;
-  setInfluences: (influences: number[]) => void;
-  setScale: (scale: number) => void;
-  setScatter: (scatter: number) => void;
-  setModelOffset: (
-    offset: [number, number, number] | { x?: number; y?: number; z?: number }
-  ) => void; // 모델 위치 (배열 또는 객체)
-  setRotation: (
-    rotation: [number, number, number] | { x?: number; y?: number; z?: number }
-  ) => void; // 모델 회전 (배열 또는 객체)
-  setOpacity: (opacity: number) => void; // 투명도
-  animatable: {
-    rotation: { x: number; y: number; z: number };
-    position: { x: number; y: number; z: number };
-    influences: number[];
-  };
-}
-
 const MODEL_NAMES = ["Gamepad", "Card"]; // 2개 섹션만 사용
 
 export default function Home() {
@@ -77,8 +55,6 @@ export default function Home() {
   const [deviceType, setDeviceType] = useState<"pc" | "tablet" | "mobile">(
     "pc"
   );
-  const bufferGeometry = new THREE.BufferGeometry();
-  const systemRef = useRef<ParticleSystemRef | null>(null);
   const sectionsRef = useRef<HTMLDivElement[]>([]);
   const leftListRef = useRef<HTMLUListElement>(null);
   const rightListRef = useRef<HTMLUListElement>(null);
@@ -94,7 +70,6 @@ export default function Home() {
   const heroContentsTextRef = useRef<HTMLParagraphElement>(null);
   const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const heroContentsListRef = useRef<HTMLUListElement>(null);
-  const currentRotationRef = useRef<[number, number, number]>([0, 0, 0]); // 현재 rotation 상태 추적
   const [postProcessingConfig, setPostProcessingConfig] =
     useState<PostProcessingConfig>({
       bloom: {
@@ -150,21 +125,7 @@ export default function Home() {
     return () => window.removeEventListener("resize", checkDeviceType);
   }, []);
 
-  // ParticleSystem 연결
-  useEffect(() => {
-    const checkSystem = () => {
-      const win = window as Window & {
-        particleSystem?: ParticleSystemRef;
-      };
-      if (win.particleSystem) {
-        systemRef.current = win.particleSystem;
-      }
-    };
-
-    checkSystem();
-    const interval = setInterval(checkSystem, 100);
-    return () => clearInterval(interval);
-  }, []);
+  // ParticleSystem은 window.particleSystem으로 직접 접근
 
   // 파트너 리스트 애니메이션 제어 (JavaScript로)
   useEffect(() => {
@@ -261,8 +222,16 @@ export default function Home() {
 
   // Intro 자동 애니메이션 (스크롤 기반 아님)
   useEffect(() => {
+    const win = window as Window & {
+      particleSystem?: {
+        setScatter?: (scatter: number) => void;
+        setScale?: (scale: number) => void;
+        setRotation?: (rotation: [number, number, number]) => void;
+      };
+    };
+
     const startIntro = () => {
-      if (!systemRef.current) {
+      if (!win.particleSystem) {
         setTimeout(startIntro, 100);
         return;
       }
@@ -281,11 +250,11 @@ export default function Home() {
       });
 
       // 초기 상태 설정
-      if (systemRef.current.setScatter) {
-        systemRef.current.setScatter(1.0); // 완전히 흩어짐
+      if (win.particleSystem.setScatter) {
+        win.particleSystem.setScatter(1.0); // 완전히 흩어짐
       }
-      if (systemRef.current.setScale) {
-        systemRef.current.setScale(PARTICLE_SIZE_SCALE * 5); // Intro 시작: 크게 (기본 크기의 5배)
+      if (win.particleSystem.setScale) {
+        win.particleSystem.setScale(PARTICLE_SIZE_SCALE * 5); // Intro 시작: 크게 (기본 크기의 5배)
       }
 
       // 애니메이션 시퀀스
@@ -297,15 +266,25 @@ export default function Home() {
             duration: 1.5,
             ease: "none",
             onUpdate: function () {
+              const win = window as Window & {
+                particleSystem?: {
+                  setScatter?: (scatter: number) => void;
+                  setScale?: (scale: number) => void;
+                  setRotation?: (rotation: [number, number, number]) => void;
+                };
+              };
               const progress = this.progress();
               // 산포: 1.0 → 0.0
-              systemRef.current?.setScatter?.(3.0 - progress * 3);
+              win.particleSystem?.setScatter?.(3.0 - progress * 3);
               // 크기: (기본 크기 * 5) → 기본 크기
               const introStartSize = PARTICLE_SIZE_SCALE * 15;
               const introEndSize = PARTICLE_SIZE_SCALE;
-              systemRef.current?.setScale?.(
+              win.particleSystem?.setScale?.(
                 introStartSize - progress * (introStartSize - introEndSize)
               );
+              if (win.particleSystem?.setRotation) {
+                win.particleSystem.setRotation([15 * (Math.PI / 180), 0, 0]);
+              }
             },
             onComplete: () => {
               const body = document.body;
@@ -380,146 +359,20 @@ export default function Home() {
     { dependencies: [isLoading] }
   );
 
-  // // GSAP ScrollTrigger 설정 (Intro 완료 후에만 작동)
-  // useEffect(() => {
-  //   if (!introComplete || !systemRef.current) return;
-
-  //   const sections = sectionsRef.current;
-
-  //   // PC/Mobile에 따른 애니메이션 설정
-  //   const animConfig = isMobile
-  //     ? {
-  //         // Mobile 설정
-  //         cameraZoomStart: 12, // Canvas 초기 카메라 위치와 일치
-  //         cameraZoomEnd: 10,
-  //         offsetX: 0.8,
-  //         offsetY: 0.5,
-  //         scrubSpeed: 1, // Pin에서는 1로 통일
-  //       }
-  //     : {
-  //         // PC 설정
-  //         cameraZoomStart: 12, // Canvas 초기 카메라 위치와 일치
-  //         cameraZoomEnd: 8,
-  //         offsetX: 1.5,
-  //         offsetY: 0.8,
-  //         scrubSpeed: 1,
-  //       };
-
-  //   console.log(
-  //     `정밀 스크롤 애니메이션 설정 (${isMobile ? "Mobile" : "PC"} 모드)`
-  //   );
-
-  //   const triggers: ScrollTrigger[] = [];
-
-  //   // 섹션 0: GamePad 유지 (Intro 후 시작점) - Pin
-  //   if (sections[0]) {
-  //     const trigger0 = ScrollTrigger.create({
-  //       trigger: sections[0],
-  //       start: "top top",
-  //       end: "+=100%",
-  //       pin: true,
-  //       scrub: animConfig.scrubSpeed,
-  //       id: "section-0-gamepad",
-  //       anticipatePin: 1,
-  //       onUpdate: (self) => {
-  //         if (systemRef.current) {
-  //           // 정밀한 스크롤 진행도
-  //           const scrollProgress = self.progress;
-
-  //           // GamePad 상태 유지
-  //           systemRef.current.setInfluences?.([0, 0]);
-  //           systemRef.current.setScatter?.(0);
-  //           systemRef.current.setScale?.(PARTICLE_SIZE_SCALE);
-  //           systemRef.current.setModelOffset?.([0, 0, 0]);
-
-  //           if (cameraRef.current) {
-  //             cameraRef.current.position.z = animConfig.cameraZoomStart;
-  //           }
-
-  //           setCurrentModelIndex(0);
-
-  //           // 디버깅용
-  //           if (scrollProgress === 0 || scrollProgress === 1) {
-  //             console.log(
-  //               `섹션 0 진행도: ${(scrollProgress * 100).toFixed(1)}%`
-  //             );
-  //           }
-  //         }
-  //       },
-  //       onEnter: () => console.log("📍 섹션 0 진입: GamePad"),
-  //       onLeave: () => console.log("📍 섹션 0 이탈"),
-  //       onEnterBack: () => console.log("📍 섹션 0 재진입"),
-  //     });
-  //     triggers.push(trigger0);
-  //   }
-
-  //   // 섹션 1: GamePad → Card - 연속 애니메이션 (점프 없이)
-  //   if (sections[1]) {
-  //     const trigger1 = ScrollTrigger.create({
-  //       trigger: sections[1],
-  //       start: "top top",
-  //       end: "+=500%",
-  //       pin: true,
-  //       scrub: animConfig.scrubSpeed,
-  //       id: "section-1-smooth",
-  //       anticipatePin: 1,
-  //       invalidateOnRefresh: true,
-  //       onUpdate: (self) => {
-  //         const progress = self.progress; // 0 ~ 1
-
-  //         if (systemRef.current && cameraRef.current) {
-  //           // === 부드러운 연속 애니메이션 (점프 없이) ===
-
-  //           // Morphing: 0 → 1.0 (연속적)
-  //           systemRef.current.setInfluences?.([progress, 0]);
-
-  //           // Camera Zoom: 30% 이후부터 시작
-  //           let cameraZ = animConfig.cameraZoomStart;
-  //           if (progress > 0.3) {
-  //             const cameraProgress = (progress - 0.3) / 0.7; // 30~100%
-  //             const easedCameraProgress =
-  //               gsap.parseEase("power2.inOut")(cameraProgress);
-  //             cameraZ =
-  //               animConfig.cameraZoomStart -
-  //               easedCameraProgress *
-  //                 (animConfig.cameraZoomStart - animConfig.cameraZoomEnd);
-  //           }
-  //           cameraRef.current.position.z = cameraZ;
-
-  //           // Model Move: 50% 이후부터 시작
-  //           let offsetX = 0;
-  //           let offsetY = 0;
-  //           if (progress > 0.5) {
-  //             const moveProgress = (progress - 0.5) / 0.5; // 50~100%
-  //             const easedMoveProgress =
-  //               gsap.parseEase("power2.out")(moveProgress);
-  //             offsetX = easedMoveProgress * animConfig.offsetX;
-  //             offsetY = easedMoveProgress * animConfig.offsetY;
-  //           }
-  //           systemRef.current.setModelOffset?.([offsetX, offsetY, 0]);
-
-  //           // 공통 설정
-  //           systemRef.current.setScatter?.(0);
-  //           systemRef.current.setScale?.(PARTICLE_SIZE_SCALE);
-  //           setCurrentModelIndex(1);
-  //         }
-  //       },
-  //       onEnter: () => console.log("📍 섹션 1 진입"),
-  //       onLeave: () => console.log("📍 섹션 1 완료"),
-  //     });
-  //     triggers.push(trigger1);
-  //   }
-
-  //   // ScrollTrigger 리프레시 (반응형 대응)
-  //   ScrollTrigger.refresh();
-
-  //   return () => {
-  //     triggers.forEach((trigger) => trigger.kill());
-  //     ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
-  //   };
-  // }, []);
-
   function pcAnimation() {
+    const win = window as Window & {
+      particleSystem?: {
+        animatable: {
+          rotation: { x: number; y: number; z: number };
+          position: { x: number; y: number; z: number };
+          scale: { x: number; y: number; z: number };
+          influences: number[];
+        };
+      };
+    };
+
+    if (!win.particleSystem) return;
+
     // 화면 크기별 애니메이션 설정
     const introAnimationConfig = {
       y: 100,
@@ -539,64 +392,70 @@ export default function Home() {
         delay: 0.5,
       });
     }
+
     const heroAnimation = gsap
       .timeline({
         scrollTrigger: {
+          fastScrollEnd: true,
           trigger: sectionsRef.current[0],
-          scrub: 1,
-          markers: true,
+          scrub: SCRUB,
         },
       })
       .to(
-        {},
+        win.particleSystem.animatable.rotation,
         {
+          y: 180 * (Math.PI / 180), // y축으로 360도 회전
           duration: 0.5,
-          onUpdate: function () {
-            const progress = this.progress();
-            if (systemRef.current) {
-              // x축으로 2만큼 이동 (0 → 2)
-              // const offsetX = progress * 2;
-              // systemRef.current.setModelOffset?.([offsetX, 0, 0]);
-
-              // systemRef.current.setInfluences?.([progress, 0, 0, 0, 0]);
-
-              // x축으로 30도 회전 (0도 → 30도)
-              const rotationX = progress * 30 * (Math.PI / 180); // 라디안 변환
-              const rotationY = progress * 360 * (Math.PI / 180); // 라디안 변환
-              currentRotationRef.current = [rotationX, rotationY, 0]; // 상태 업데이트
-              systemRef.current.setRotation?.([rotationX, rotationY, 0]);
-            }
-          },
         },
         0.5
       );
-    if (!systemRef.current) return;
 
     const aboutAnimation = gsap
       .timeline({
         scrollTrigger: {
+          fastScrollEnd: true,
           trigger: sectionsRef.current[1],
           end: "+=400%",
           pin: true,
-          scrub: 1,
+          scrub: SCRUB,
         },
       })
       .to(
-        systemRef.current.animatable.rotation,
+        win.particleSystem.animatable.rotation,
         {
-          y: 720 * (Math.PI / 180), // 720도 회전
-          duration: 6,
+          y: 360 * (Math.PI / 180),
+          duration: 8,
         },
         0
       )
       .to(
-        systemRef.current.animatable.influences,
+        win.particleSystem.animatable.scale,
         {
-          "1": 1, // 두 번째 인덱스를 1로
-          duration: 6,
+          x: 5,
+          y: 5,
+          z: 5,
+          duration: 5,
         },
         0
       )
+
+      .to(
+        win.particleSystem.animatable.influences,
+        {
+          "0": 0,
+          "1": 0,
+          "2": 1,
+          "3": 0,
+          "4": 0,
+          duration: 5,
+        },
+        0
+      )
+      .to(window.postProcessing?.bloom || {}, {
+        intensity: 0.0,
+        threshold: 0,
+        duration: 1.0,
+      })
       .from(
         sectionsRef.current[1].querySelector(`.${styles.title}`),
         {
@@ -684,11 +543,34 @@ export default function Home() {
         },
         4.5
       )
+      .to(
+        win.particleSystem.animatable.scale,
+        {
+          x: 1,
+          y: 1,
+          z: 1,
+          duration: 2,
+        },
+        4.5
+      )
 
+      .to(
+        win.particleSystem.animatable.influences,
+        {
+          "0": 0,
+          "1": 1,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          duration: 2,
+        },
+        4.5
+      )
       .from(
         sectionsRef.current[1].querySelector(`.${styles.contents_list}`),
         {
           opacity: 0,
+          duration: 1.5,
         },
         5
       )
@@ -696,48 +578,274 @@ export default function Home() {
         sectionsRef.current[1].querySelector(`.${styles.contents_list}`),
         {
           opacity: 0,
+          duration: 1.5,
         },
-        5.5
+        6.5
       );
 
     const partnersAnimation = gsap
       .timeline({
         scrollTrigger: {
-          trigger: `.${styles.partners} .${styles.title}`,
-          toggleActions: "play reverse play reverse",
-          start: "top 70%",
-          end: "bottom top",
+          fastScrollEnd: true,
+          trigger: sectionsRef.current[2],
+          pin: true,
+          end: "+=200%",
+          scrub: SCRUB,
         },
       })
+
       .from(sectionsRef.current[2], {
         opacity: 0,
+      })
+      .to(cameraRef.current?.position || {}, {
+        z: 5,
+        duration: 0.5,
+      })
+      .to(
+        win.particleSystem.animatable.influences,
+        {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 1,
+          "4": 0,
+          duration: 1.5,
+        },
+        0
+      )
+
+      .to(
+        win.particleSystem.animatable.position,
+        {
+          y: -3,
+          z: 5,
+          duration: 2,
+        },
+        0
+      )
+      .to(
+        win.particleSystem.animatable.scale,
+        {
+          x: 3,
+          z: 3,
+          y: 3,
+          duration: 1,
+        },
+        0
+      );
+
+    const keyItemsAnimation1 = gsap
+      .timeline({
+        scrollTrigger: {
+          fastScrollEnd: true,
+          trigger: sectionsRef.current[4],
+          scrub: SCRUB,
+          start: "top 75%",
+          end: "50% 90%",
+        },
+      })
+      .to(
+        win.particleSystem.animatable.scale,
+        {
+          x: 1,
+          y: 1,
+          z: 1,
+        },
+        0
+      )
+
+      .to(
+        cameraRef.current?.position || {},
+        {
+          z: 15,
+        },
+        0
+      )
+      .to(
+        win.particleSystem.animatable.position,
+        {
+          y: 0,
+          x: 7,
+          z: 0,
+        },
+        0
+      )
+
+      .to(
+        win.particleSystem.animatable.influences,
+        {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+        },
+        0
+      )
+      .to(win.particleSystem?.animatable.rotation, {
+        z: 15 * (Math.PI / 180),
+        x: 40 * (Math.PI / 180),
+      });
+    const keyItemsAnimation2 = gsap
+      .timeline({
+        scrollTrigger: {
+          fastScrollEnd: true,
+          trigger: sectionsRef.current[5],
+          scrub: SCRUB,
+          // start: "50% bottom",
+          start: "top 75%",
+          end: "50% 90%",
+        },
+      })
+      .to(win.particleSystem?.animatable.position, {
+        x: -7,
+      })
+      .to(win.particleSystem?.animatable.rotation, {
+        z: -15 * (Math.PI / 180),
+        x: 40 * (Math.PI / 180),
       });
 
-    const keypointItems = sectionsRef.current[3].querySelectorAll(
-      `.${styles.keypoint_item}`
-    );
+    const keyItemsAnimation3 = gsap
+      .timeline({
+        scrollTrigger: {
+          fastScrollEnd: true,
+          trigger: sectionsRef.current[6],
+          scrub: SCRUB,
+          start: "top 75%",
+          end: "50% 90%",
+        },
+      })
+
+      .to(win.particleSystem?.animatable.position, {
+        x: 7,
+      })
+      .to(win.particleSystem?.animatable.rotation, {
+        z: 15 * (Math.PI / 180),
+        x: 40 * (Math.PI / 180),
+      });
+    const keyItemsAnimation4 = gsap
+      .timeline({
+        scrollTrigger: {
+          fastScrollEnd: true,
+          trigger: sectionsRef.current[7],
+          scrub: SCRUB,
+          // start: "50% bottom",
+          start: "top 75%",
+          end: "50% 90%",
+        },
+      })
+      .to(win.particleSystem?.animatable.position, {
+        x: -7,
+      })
+      .to(win.particleSystem?.animatable.rotation, {
+        z: -15 * (Math.PI / 180),
+        x: 40 * (Math.PI / 180),
+      });
+    const keyItemsAnimation5 = gsap
+      .timeline({
+        scrollTrigger: {
+          fastScrollEnd: true,
+          trigger: sectionsRef.current[8],
+          scrub: SCRUB,
+          start: "top 75%",
+          end: "50% 90%",
+        },
+      })
+
+      .to(win.particleSystem?.animatable.position, {
+        x: 7,
+      })
+      .to(win.particleSystem?.animatable.rotation, {
+        z: 15 * (Math.PI / 180),
+        x: 40 * (Math.PI / 180),
+      });
+    const vision = gsap
+      .timeline({
+        scrollTrigger: {
+          fastScrollEnd: true,
+          trigger: sectionsRef.current[9],
+          scrub: SCRUB,
+          end: "50% 50%",
+        },
+      })
+
+      .to(
+        win.particleSystem?.animatable.position,
+        {
+          x: -7,
+        },
+        0
+      )
+      .to(
+        win.particleSystem?.animatable.rotation,
+        {
+          z: -30 * (Math.PI / 180),
+          x: 5 * (Math.PI / 180),
+          y: 380 * (Math.PI / 180),
+        },
+        0
+      )
+      .to(
+        win.particleSystem.animatable.influences,
+        {
+          "0": 1,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          duration: 1,
+        },
+        0
+      );
+    const footer = gsap
+      .timeline({
+        scrollTrigger: {
+          fastScrollEnd: true,
+          trigger: sectionsRef.current[10],
+          scrub: SCRUB,
+
+          start: "25% 50%",
+          end: "bottom bottom",
+        },
+      })
+
+      .to(
+        win.particleSystem.animatable.influences,
+        {
+          "0": 0,
+          "1": 0,
+          "2": 1,
+          "3": 0,
+          "4": 0,
+        },
+        0
+      )
+      .to(
+        win.particleSystem?.animatable.rotation,
+        {
+          z: 0,
+          x: 0,
+        },
+        0
+      )
+      .to(
+        win.particleSystem?.animatable.position,
+        {
+          x: 0,
+        },
+        0
+      )
+      .to(
+        win.particleSystem?.animatable.scale,
+        {
+          x: 7,
+          y: 7,
+          z: 7,
+        },
+        0
+      );
   }
-  // function tabletAnimation() {
-  //   // 화면 크기별 애니메이션 설정
-  //   const introAnimationConfig = {
-  //     y: 100,
-  //     opacity: 0,
-  //     stagger: 0.025,
-  //     duration: 0.8,
-  //     ease: "power4.inOut",
-  //   };
-  //   const contentsSplit = SplitText.create(heroContentsTextRef.current, {
-  //     type: "chars",
-  //     autoSplit: true,
-  //   });
-  //   if (contentsSplit.chars && contentsSplit.chars.length > 0) {
-  //     gsap.from(contentsSplit.chars, {
-  //       ...introAnimationConfig,
-  //       stagger: 0,
-  //       delay: 0.5,
-  //     });
-  //   }
-  // }
+
   function mobileAnimation() {
     // 이전 Mobile ScrollTrigger 제거
     const existingTrigger = ScrollTrigger.getById("section-0-hero-mobile");
@@ -1141,13 +1249,18 @@ export default function Home() {
         </section>
         <section
           className={styles.keypoint}
-          ref={(el) => {
-            if (el) sectionsRef.current[3] = el as HTMLDivElement;
-          }}
+          // ref={(el) => {
+          //   if (el) sectionsRef.current[3] = el as HTMLDivElement;
+          // }}
         >
           <div className={styles.container}>
             <div className={styles.contents}>
-              <div className={styles.keypoint_item}>
+              <div
+                className={styles.keypoint_item}
+                ref={(el) => {
+                  if (el) sectionsRef.current[4] = el as HTMLDivElement;
+                }}
+              >
                 <div className={styles.models}></div>
                 <div className={styles.contents_data}>
                   <span>KEY POINT 1</span>
@@ -1164,7 +1277,12 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              <div className={styles.keypoint_item}>
+              <div
+                className={styles.keypoint_item}
+                ref={(el) => {
+                  if (el) sectionsRef.current[5] = el as HTMLDivElement;
+                }}
+              >
                 <div className={styles.models}></div>
                 <div className={styles.contents_data}>
                   <span>KEY POINT 2</span>
@@ -1180,7 +1298,12 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              <div className={styles.keypoint_item}>
+              <div
+                className={styles.keypoint_item}
+                ref={(el) => {
+                  if (el) sectionsRef.current[6] = el as HTMLDivElement;
+                }}
+              >
                 <div className={styles.models}></div>
                 <div className={styles.contents_data}>
                   <span>KEY POINT 3</span>
@@ -1196,7 +1319,12 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              <div className={styles.keypoint_item}>
+              <div
+                className={styles.keypoint_item}
+                ref={(el) => {
+                  if (el) sectionsRef.current[7] = el as HTMLDivElement;
+                }}
+              >
                 <div className={styles.models}></div>
                 <div className={styles.contents_data}>
                   <span>KEY POINT 4</span>
@@ -1210,7 +1338,12 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              <div className={styles.keypoint_item}>
+              <div
+                className={styles.keypoint_item}
+                ref={(el) => {
+                  if (el) sectionsRef.current[8] = el as HTMLDivElement;
+                }}
+              >
                 <div className={styles.models}></div>
                 <div className={styles.contents_data}>
                   <span>KEY POINT 5</span>
@@ -1230,7 +1363,7 @@ export default function Home() {
         <section
           className={styles.vision}
           ref={(el) => {
-            if (el) sectionsRef.current[4] = el as HTMLDivElement;
+            if (el) sectionsRef.current[9] = el as HTMLDivElement;
           }}
         >
           <div className={styles.container}>
@@ -1266,7 +1399,7 @@ export default function Home() {
         <section
           className={styles.end}
           ref={(el) => {
-            if (el) sectionsRef.current[5] = el as HTMLDivElement;
+            if (el) sectionsRef.current[10] = el as HTMLDivElement;
           }}
         >
           <div className={styles.container}>
@@ -1278,13 +1411,19 @@ export default function Home() {
             </div>
             <div className={styles.contents}>
               <Button size="large">
-                <span>MIMBO NODE</span>
+                <a href="https://mining.mimbonode.io/login" target="_blank">
+                  <span>MIMBO NODE</span>
+                </a>
               </Button>
               <Button size="large">
-                <span>MGG Arean</span>
+                <a href="https://www.mggarena.com" target="_blank">
+                  <span>MGG Arean</span>
+                </a>
               </Button>
               <Button size="large">
-                <span>Fellas card</span>
+                <a href="https://www.fellascard.com/login" target="_blank">
+                  <span>Fellas card</span>
+                </a>
               </Button>
             </div>
           </div>

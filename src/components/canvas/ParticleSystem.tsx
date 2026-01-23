@@ -369,6 +369,7 @@ export default function ParticleSystem({
   // GSAP 애니메이션을 위한 직접 접근 가능한 객체들
   const animatableRef = useRef({
     rotation: { x: 0, y: 0, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
     position: { x: 0, y: 0, z: 0 },
     influences: [0, 0, 0, 0, 0],
   });
@@ -378,13 +379,6 @@ export default function ParticleSystem({
   const [isMorphing, setIsMorphing] = useState(false);
   const [currentModelIndex, setCurrentModelIndex] = useState(0);
   const nextModelIndexRef = useRef<number>(0);
-
-  // 스크롤 애니메이션 상태 (직접 사용하지 않고 setter만 사용)
-  const [, setParticleScale] = useState(2.0); // 초기 크기: 크게
-  const [, setScatterAmount] = useState(1.0); // 초기 산포: 완전히 흩어짐
-  const [, setModelOffset] = useState<[number, number, number]>([0, 0, 0]); // 모델 위치 오프셋
-  const [, setOpacity] = useState(1.0); // 투명도
-  const [, setRotation] = useState<[number, number, number]>([0, 0, 0]); // 모델 회전
 
   // 색상 스킴 상태
   const [colorScheme, setColorScheme] = useState<ColorScheme>("rainbow");
@@ -610,421 +604,389 @@ export default function ParticleSystem({
     }
   }, [shaderMaterial]);
 
-  // 모델 중앙 정렬 및 동일 크기로 스케일링 함수
-  const centerModels = (gltfScene: THREE.Object3D, targetSize: number = 10) => {
-    const box = new THREE.Box3().setFromObject(gltfScene);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
+  // ========== Helper Functions ==========
 
-    // 중앙 정렬
-    gltfScene.position.sub(center);
+  // 모델 중앙 정렬 및 동일 크기로 스케일링
+  const centerModels = useCallback(
+    (gltfScene: THREE.Object3D, targetSize: number = 10) => {
+      const box = new THREE.Box3().setFromObject(gltfScene);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      gltfScene.position.sub(center);
 
-    // 바운딩 박스 크기 계산
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const maxDimension = Math.max(size.x, size.y, size.z);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const maxDimension = Math.max(size.x, size.y, size.z);
 
-    // 목표 크기로 스케일 조정
-    if (maxDimension > 0) {
-      const scale = targetSize / maxDimension;
-      gltfScene.scale.multiplyScalar(scale);
-    }
-  };
+      if (maxDimension > 0) {
+        const scale = targetSize / maxDimension;
+        gltfScene.scale.multiplyScalar(scale);
+      }
+    },
+    []
+  );
 
-  // 파티클 위치 배열을 중앙 정렬하고 동일한 크기로 정규화하는 함수
-  const normalizeParticlePositions = (
-    positions: Float32Array,
-    targetSize: number = 10
-  ): Float32Array => {
-    if (positions.length === 0) return positions;
+  // 파티클 위치 배열 정규화
+  const normalizeParticlePositions = useCallback(
+    (positions: Float32Array, targetSize: number = 10): Float32Array => {
+      if (positions.length === 0) return positions;
 
-    const count = positions.length / 3;
-    let minX = Infinity,
-      maxX = -Infinity;
-    let minY = Infinity,
-      maxY = -Infinity;
-    let minZ = Infinity,
-      maxZ = -Infinity;
+      const count = positions.length / 3;
+      let minX = Infinity,
+        maxX = -Infinity;
+      let minY = Infinity,
+        maxY = -Infinity;
+      let minZ = Infinity,
+        maxZ = -Infinity;
 
-    // 바운딩 박스 계산
-    for (let i = 0; i < count; i++) {
-      const x = positions[i * 3];
-      const y = positions[i * 3 + 1];
-      const z = positions[i * 3 + 2];
+      // 바운딩 박스 계산
+      for (let i = 0; i < count; i++) {
+        const x = positions[i * 3];
+        const y = positions[i * 3 + 1];
+        const z = positions[i * 3 + 2];
 
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-      minZ = Math.min(minZ, z);
-      maxZ = Math.max(maxZ, z);
-    }
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        minZ = Math.min(minZ, z);
+        maxZ = Math.max(maxZ, z);
+      }
 
-    // 중심점 계산
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    const centerZ = (minZ + maxZ) / 2;
+      // 중심점 계산
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const centerZ = (minZ + maxZ) / 2;
 
-    // 최대 차원 계산
-    const sizeX = maxX - minX;
-    const sizeY = maxY - minY;
-    const sizeZ = maxZ - minZ;
-    const maxDimension = Math.max(sizeX, sizeY, sizeZ);
+      // 최대 차원 계산
+      const sizeX = maxX - minX;
+      const sizeY = maxY - minY;
+      const sizeZ = maxZ - minZ;
+      const maxDimension = Math.max(sizeX, sizeY, sizeZ);
 
-    // 정규화된 위치 배열 생성
-    const normalized = new Float32Array(positions.length);
-    const scale = maxDimension > 0 ? targetSize / maxDimension : 1;
+      // 정규화된 위치 배열 생성
+      const normalized = new Float32Array(positions.length);
+      const scale = maxDimension > 0 ? targetSize / maxDimension : 1;
 
-    for (let i = 0; i < count; i++) {
-      const x = positions[i * 3];
-      const y = positions[i * 3 + 1];
-      const z = positions[i * 3 + 2];
+      for (let i = 0; i < count; i++) {
+        const x = positions[i * 3];
+        const y = positions[i * 3 + 1];
+        const z = positions[i * 3 + 2];
 
-      // 중앙 정렬 및 스케일링
-      normalized[i * 3] = (x - centerX) * scale;
-      normalized[i * 3 + 1] = (y - centerY) * scale;
-      normalized[i * 3 + 2] = (z - centerZ) * scale;
-    }
+        // 중앙 정렬 및 스케일링
+        normalized[i * 3] = (x - centerX) * scale;
+        normalized[i * 3 + 1] = (y - centerY) * scale;
+        normalized[i * 3 + 2] = (z - centerZ) * scale;
+      }
 
-    return normalized;
-  };
+      return normalized;
+    },
+    []
+  );
 
-  // 모델 로딩 및 파티클 생성
-  useEffect(() => {
-    const loadModels = async () => {
-      const loader = new GLTFLoader();
-      const draco = new DRACOLoader();
-      draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
-      loader.setDRACOLoader(draco);
+  // 위치 정규화 및 Y 범위 계산
+  const normalizeWithBounds = useCallback(
+    (
+      positions: Float32Array,
+      targetSize: number
+    ): { positions: Float32Array; minY: number; maxY: number } => {
+      if (positions.length === 0) {
+        return { positions, minY: -targetSize / 2, maxY: targetSize / 2 };
+      }
 
+      const count = positions.length / 3;
+      let minY = Infinity,
+        maxY = -Infinity;
+
+      for (let i = 0; i < count; i++) {
+        const y = positions[i * 3 + 1];
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+
+      const normalized = normalizeParticlePositions(positions, targetSize);
+
+      let normalizedMinY = Infinity,
+        normalizedMaxY = -Infinity;
+      for (let i = 0; i < count; i++) {
+        const y = normalized[i * 3 + 1];
+        normalizedMinY = Math.min(normalizedMinY, y);
+        normalizedMaxY = Math.max(normalizedMaxY, y);
+      }
+
+      return {
+        positions: normalized,
+        minY: normalizedMinY,
+        maxY: normalizedMaxY,
+      };
+    },
+    [normalizeParticlePositions]
+  );
+
+  // 모델 로딩
+  const loadModels = useCallback(async () => {
+    const loader = new GLTFLoader();
+    const draco = new DRACOLoader();
+    draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
+    loader.setDRACOLoader(draco);
+
+    const loadModelSafely = async (path: string) => {
       try {
-        // 모델 로딩 시도 (실패 시 기본 형태 사용)
-        const modelPaths = PARTICLE_MODEL_PATH;
-
-        const loadModelSafely = async (path: string) => {
-          try {
-            return await loader.loadAsync(path);
-          } catch {
-            // 모델 파일이 없을 때는 조용히 실패 처리 (기본 형태 사용)
-            // 개발 환경에서만 디버그 메시지 표시
-            if (import.meta.env.DEV) {
-              console.debug(`모델 파일 없음 (기본 형태 사용): ${path}`);
-            }
-            return null;
-          }
-        };
-
-        const [gamepad, card, saturn] = await Promise.all(
-          modelPaths.map(loadModelSafely)
-        );
-
-        // 모델 로딩 결과 출력
-        console.log("=== 모델 로딩 결과 ===");
-        console.log("Gamepad (model_4):", gamepad ? "✓ 로드됨" : "✗ 실패");
-        console.log("Card (model_2):", card ? "✓ 로드됨" : "✗ 실패");
-        console.log("Saturn (model_3):", saturn ? "✓ 로드됨" : "✗ 실패");
-        console.log("===================");
-
-        // 모델이 있으면 중앙 정렬 및 동일 크기로 스케일링
-        // PARTICLE_SHAPE_SIZE를 targetSize로 사용 (ParticlesEnum.ts에서 조정 가능)
-        const targetSize = PARTICLE_SHAPE_SIZE; // 모든 모델을 이 크기로 통일
-        [gamepad, card, saturn].forEach((result, index) => {
-          if (result) {
-            centerModels(result.scene, targetSize);
-            console.log(
-              `Model ${
-                index + 1
-              } 중앙 정렬 및 크기 조정 완료 (목표 크기: ${targetSize})`
-            );
-          }
-        });
-
-        // 모든 모델에 ParticlesEnum.ts의 공통 외곽 밝기 설정 사용
-        const modelEdgeBrightnessConfigs: (
-          | ModelEdgeBrightnessConfig
-          | undefined
-        )[] = [
-          undefined, // Gamepad 모델 - 공통 설정 사용
-          undefined, // Card 모델 - 공통 설정 사용
-          undefined, // Saturn 모델 - 공통 설정 사용
-        ];
-
-        // 파티클 생성 (모델이 없으면 기본 형태 사용)
-        const particleCount = PARTICLE_COUNT;
-        const shapeSize = PARTICLE_SHAPE_SIZE; // 기본 형태도 동일한 크기로
-
-        // Gamepad 모델 파티클 생성
-        const gamepadData = gamepad
-          ? new CreateParticlePositions(
-              gamepad,
-              particleCount,
-              modelEdgeBrightnessConfigs[0]
-            ).createParticles()
-          : {
-              positions: generateSphere(particleCount, shapeSize),
-              edgeBrightness: new Float32Array(particleCount).fill(
-                NAME_EDGE_BRIGHTNESS.default
-              ),
-            };
-
-        // Card 모델 파티클 생성
-        const cardData = card
-          ? new CreateParticlePositions(
-              card,
-              particleCount,
-              modelEdgeBrightnessConfigs[1]
-            ).createParticles()
-          : {
-              positions: generateCube(particleCount, shapeSize),
-              edgeBrightness: new Float32Array(particleCount).fill(
-                NAME_EDGE_BRIGHTNESS.default
-              ),
-            };
-
-        // Saturn 모델 파티클 생성
-        const saturnData = saturn
-          ? new CreateParticlePositions(
-              saturn,
-              particleCount,
-              modelEdgeBrightnessConfigs[2]
-            ).createParticles()
-          : {
-              positions: generatePyramid(particleCount, shapeSize),
-              edgeBrightness: new Float32Array(particleCount).fill(
-                NAME_EDGE_BRIGHTNESS.default
-              ),
-            };
-
-        // 4번째 모르프: 내부가 가득 찬 Sphere 생성 (화면을 덮을 수 있을 만큼 큰 구)
-        const filledSphereData = {
-          positions: generateFilledSphere(particleCount, shapeSize),
-          edgeBrightness: new Float32Array(particleCount).fill(
-            NAME_EDGE_BRIGHTNESS.default
-          ),
-        };
-
-        // 5번째 모르프: Plane 생성
-        const planeData = {
-          positions: generatePlane(particleCount, shapeSize),
-          edgeBrightness: new Float32Array(particleCount).fill(
-            NAME_EDGE_BRIGHTNESS.default
-          ),
-        };
-
-        // 모든 파티클 위치를 동일한 크기로 정규화 (모델별 바운딩 박스 계산)
-        const normalizeWithBounds = (
-          positions: Float32Array,
-          targetSize: number
-        ): { positions: Float32Array; minY: number; maxY: number } => {
-          if (positions.length === 0) {
-            return { positions, minY: -targetSize / 2, maxY: targetSize / 2 };
-          }
-
-          const count = positions.length / 3;
-          let minY = Infinity,
-            maxY = -Infinity;
-
-          // Y 범위 계산
-          for (let i = 0; i < count; i++) {
-            const y = positions[i * 3 + 1];
-            minY = Math.min(minY, y);
-            maxY = Math.max(maxY, y);
-          }
-
-          const normalized = normalizeParticlePositions(positions, targetSize);
-
-          // 정규화 후 다시 Y 범위 계산
-          let normalizedMinY = Infinity,
-            normalizedMaxY = -Infinity;
-          for (let i = 0; i < count; i++) {
-            const y = normalized[i * 3 + 1];
-            normalizedMinY = Math.min(normalizedMinY, y);
-            normalizedMaxY = Math.max(normalizedMaxY, y);
-          }
-
-          return {
-            positions: normalized,
-            minY: normalizedMinY,
-            maxY: normalizedMaxY,
-          };
-        };
-
-        const gamepadNormalized = normalizeWithBounds(
-          gamepadData.positions,
-          targetSize
-        );
-        const cardNormalized = normalizeWithBounds(
-          cardData.positions,
-          targetSize
-        );
-        const saturnNormalized = normalizeWithBounds(
-          saturnData.positions,
-          targetSize
-        );
-        const filledSphereNormalized = normalizeWithBounds(
-          filledSphereData.positions,
-          targetSize
-        );
-        const planeNormalized = normalizeWithBounds(
-          planeData.positions,
-          targetSize
-        );
-
-        const gamepadPositions = gamepadNormalized.positions;
-        const cardPositions = cardNormalized.positions;
-        const saturnPositions = saturnNormalized.positions;
-        const filledSpherePositions = filledSphereNormalized.positions;
-        const planePositions = planeNormalized.positions;
-
-        // 현재 모델의 Y 범위 저장 (기본값: gamepad)
-        const currentMinY = gamepadNormalized.minY;
-        const currentMaxY = gamepadNormalized.maxY;
-
-        // 외곽 밝기는 위치 정규화 후에도 유지
-        const currentEdgeBrightness = gamepadData.edgeBrightness;
-
-        console.log(
-          "모든 모델 파티클 위치 정규화 완료 (목표 크기:",
-          targetSize,
-          ")"
-        );
-
-        // 텍스처 인덱스 배열 생성 (위치 기반 규칙적 패턴)
-        const textureIndices = new Float32Array(particleCount);
-
-        // 텍스처 개수 (TEXTURE_PATHS 배열 길이에 따라 자동 조정)
-        const textureCount = TEXTURE_PATHS.length;
-
-        // 힌트 방식: 파티클별 랜덤 값 생성 (개별 전환 속도용)
-        const rnd1Array = new Float32Array(particleCount);
-        const rnd2Array = new Float32Array(particleCount);
-
-        // 위치 기반 해시 함수로 규칙적으로 할당
-        const hash = (x: number, y: number, z: number) => {
-          const n = x * 73856093 + y * 19349663 + z * 83492791;
-          return Math.abs(Math.floor(n)) % textureCount; // 동적으로 텍스처 개수 사용
-        };
-
-        // 랜덤 값 생성 함수 (위치 기반, 일관성 유지)
-        const seededRandom = (seed: number) => {
-          const x = Math.sin(seed) * 10000;
-          return x - Math.floor(x);
-        };
-
-        // 각 파티클의 위치를 기반으로 규칙적으로 텍스처 인덱스 및 랜덤 값 할당
-        for (let i = 0; i < particleCount; i++) {
-          const x = gamepadPositions[i * 3];
-          const y = gamepadPositions[i * 3 + 1];
-          const z = gamepadPositions[i * 3 + 2];
-
-          // 위치를 기반으로 한 해시 값으로 텍스처 인덱스 결정 (규칙적이지만 다양함)
-          textureIndices[i] = hash(x, y, z);
-
-          // 힌트 방식: 각 파티클마다 고유한 랜덤 값 생성 (위치 기반)
-          const seed1 = x * 12.9898 + y * 78.233 + z * 45.164;
-          const seed2 = x * 19.1919 + y * 91.9191 + z * 28.2828;
-          rnd1Array[i] = seededRandom(seed1);
-          rnd2Array[i] = seededRandom(seed2);
+        return await loader.loadAsync(path);
+      } catch {
+        if (import.meta.env.DEV) {
+          console.debug(`모델 파일 없음 (기본 형태 사용): ${path}`);
         }
-
-        // BufferGeometry 생성
-        const bufferGeometry = new THREE.BufferGeometry();
-        // 모델 Y 범위를 shader에 설정
-        if (shaderMaterialRef.current) {
-          shaderMaterialRef.current.uniforms.uModelMinY.value = currentMinY;
-          shaderMaterialRef.current.uniforms.uModelMaxY.value = currentMaxY;
-        }
-
-        bufferGeometry.setAttribute(
-          "position",
-          new THREE.Float32BufferAttribute(gamepadPositions, 3)
-        );
-        bufferGeometry.setAttribute(
-          "morphTarget1",
-          new THREE.Float32BufferAttribute(cardPositions, 3)
-        );
-        bufferGeometry.setAttribute(
-          "morphTarget2",
-          new THREE.Float32BufferAttribute(saturnPositions, 3)
-        );
-        bufferGeometry.setAttribute(
-          "morphTarget3",
-          new THREE.Float32BufferAttribute(filledSpherePositions, 3)
-        );
-        bufferGeometry.setAttribute(
-          "morphTarget4",
-          new THREE.Float32BufferAttribute(planePositions, 3)
-        );
-        bufferGeometry.setAttribute(
-          "aTextureIndex",
-          new THREE.Float32BufferAttribute(textureIndices, 1)
-        );
-        // 힌트 방식: 파티클별 랜덤 값 attribute 추가
-        bufferGeometry.setAttribute(
-          "aRandom1",
-          new THREE.Float32BufferAttribute(rnd1Array, 1)
-        );
-        bufferGeometry.setAttribute(
-          "aRandom2",
-          new THREE.Float32BufferAttribute(rnd2Array, 1)
-        );
-        // 외곽 밝기 attribute 추가
-        bufferGeometry.setAttribute(
-          "aEdgeBrightness",
-          new THREE.Float32BufferAttribute(currentEdgeBrightness, 1)
-        );
-
-        // 텍스처 인덱스 분포 확인
-        const textureDistribution = [0, 0, 0, 0, 0];
-        for (let i = 0; i < particleCount; i++) {
-          textureDistribution[Math.floor(textureIndices[i])]++;
-        }
-
-        console.log("=== 파티클 생성 완료 ===");
-        console.log("파티클 개수:", particleCount);
-        console.log("텍스처 인덱스 범위:", {
-          min: Math.min(...Array.from(textureIndices)),
-          max: Math.max(...Array.from(textureIndices)),
-        });
-        console.log("Investor 텍스처 분포:", {
-          "investor/1.png": textureDistribution[0],
-          "investor/2.png": textureDistribution[1],
-          "investor/3.png": textureDistribution[2],
-          "investor/4.png": textureDistribution[3],
-          "investor/5.png": textureDistribution[4],
-        });
-        console.log("Geometry 속성:", Object.keys(bufferGeometry.attributes));
-        console.log("===================");
-
-        // 모델 위치 저장 (5개 모르프)
-        modelPositionsRef.current = [
-          gamepadPositions,
-          cardPositions,
-          saturnPositions,
-          filledSpherePositions,
-          planePositions,
-        ];
-        sourcePositionsRef.current = new Float32Array(gamepadPositions);
-        currentPositionsRef.current = new Float32Array(gamepadPositions);
-
-        // Swarm 위치 초기화
-        swarmPositionsRef.current = new Float32Array(particleCount * 3);
-
-        // 노이즈 함수 초기화
-        noise3DRef.current = createNoise3D();
-        noise4DRef.current = createNoise4D();
-
-        // Points 생성
-        if (meshRef.current) {
-          meshRef.current.geometry = bufferGeometry;
-        }
-      } catch (error) {
-        console.error("모델 로딩 실패:", error);
+        return null;
       }
     };
 
-    loadModels();
-  }, []);
+    try {
+      const modelPaths = PARTICLE_MODEL_PATH;
+      const [gamepad, card, saturn] = await Promise.all(
+        modelPaths.map(loadModelSafely)
+      );
+
+      if (import.meta.env.DEV) {
+        console.log("=== 모델 로딩 결과 ===");
+        console.log("Gamepad:", gamepad ? "✓" : "✗");
+        console.log("Card:", card ? "✓" : "✗");
+        console.log("Saturn:", saturn ? "✓" : "✗");
+        console.log("===================");
+      }
+
+      const targetSize = PARTICLE_SHAPE_SIZE;
+      [gamepad, card, saturn].forEach((result) => {
+        if (result) centerModels(result.scene, targetSize);
+      });
+
+      return { gamepad, card, saturn };
+    } catch (error) {
+      console.error("모델 로딩 실패:", error);
+      return { gamepad: null, card: null, saturn: null };
+    }
+  }, [centerModels]);
+
+  // 파티클 데이터 생성
+  const createParticleData = useCallback(
+    (models: { gamepad: any; card: any; saturn: any }) => {
+      const particleCount = PARTICLE_COUNT;
+      const shapeSize = PARTICLE_SHAPE_SIZE;
+      const defaultBrightness = new Float32Array(particleCount).fill(
+        NAME_EDGE_BRIGHTNESS.default
+      );
+
+      const gamepadData = models.gamepad
+        ? new CreateParticlePositions(
+            models.gamepad,
+            particleCount,
+            undefined
+          ).createParticles()
+        : {
+            positions: generateSphere(particleCount, shapeSize),
+            edgeBrightness: defaultBrightness,
+          };
+
+      const cardData = models.card
+        ? new CreateParticlePositions(
+            models.card,
+            particleCount,
+            undefined
+          ).createParticles()
+        : {
+            positions: generateCube(particleCount, shapeSize),
+            edgeBrightness: defaultBrightness,
+          };
+
+      const saturnData = models.saturn
+        ? new CreateParticlePositions(
+            models.saturn,
+            particleCount,
+            undefined
+          ).createParticles()
+        : {
+            positions: generatePyramid(particleCount, shapeSize),
+            edgeBrightness: defaultBrightness,
+          };
+
+      const filledSphereData = {
+        positions: generateFilledSphere(particleCount, shapeSize),
+        edgeBrightness: defaultBrightness,
+      };
+
+      const planeData = {
+        positions: generatePlane(particleCount, shapeSize),
+        edgeBrightness: defaultBrightness,
+      };
+
+      return {
+        gamepadData,
+        cardData,
+        saturnData,
+        filledSphereData,
+        planeData,
+      };
+    },
+    []
+  );
+
+  // Geometry 생성 및 초기화
+  const createGeometry = useCallback(
+    (particleData: {
+      gamepadData: { positions: Float32Array; edgeBrightness: Float32Array };
+      cardData: { positions: Float32Array; edgeBrightness: Float32Array };
+      saturnData: { positions: Float32Array; edgeBrightness: Float32Array };
+      filledSphereData: {
+        positions: Float32Array;
+        edgeBrightness: Float32Array;
+      };
+      planeData: { positions: Float32Array; edgeBrightness: Float32Array };
+    }) => {
+      const targetSize = PARTICLE_SHAPE_SIZE;
+      const particleCount = PARTICLE_COUNT;
+
+      const gamepadNormalized = normalizeWithBounds(
+        particleData.gamepadData.positions,
+        targetSize
+      );
+      const cardNormalized = normalizeWithBounds(
+        particleData.cardData.positions,
+        targetSize
+      );
+      const saturnNormalized = normalizeWithBounds(
+        particleData.saturnData.positions,
+        targetSize
+      );
+      const filledSphereNormalized = normalizeWithBounds(
+        particleData.filledSphereData.positions,
+        targetSize
+      );
+      const planeNormalized = normalizeWithBounds(
+        particleData.planeData.positions,
+        targetSize
+      );
+
+      const positions = {
+        gamepad: gamepadNormalized.positions,
+        card: cardNormalized.positions,
+        saturn: saturnNormalized.positions,
+        filledSphere: filledSphereNormalized.positions,
+        plane: planeNormalized.positions,
+      };
+
+      if (shaderMaterialRef.current) {
+        shaderMaterialRef.current.uniforms.uModelMinY.value =
+          gamepadNormalized.minY;
+        shaderMaterialRef.current.uniforms.uModelMaxY.value =
+          gamepadNormalized.maxY;
+      }
+
+      // 텍스처 및 랜덤 값 생성
+      const textureCount = TEXTURE_PATHS.length;
+      const textureIndices = new Float32Array(particleCount);
+      const rnd1Array = new Float32Array(particleCount);
+      const rnd2Array = new Float32Array(particleCount);
+
+      const hash = (x: number, y: number, z: number) => {
+        const n = x * 73856093 + y * 19349663 + z * 83492791;
+        return Math.abs(Math.floor(n)) % textureCount;
+      };
+
+      const seededRandom = (seed: number) => {
+        const x = Math.sin(seed) * 10000;
+        return x - Math.floor(x);
+      };
+
+      for (let i = 0; i < particleCount; i++) {
+        const x = positions.gamepad[i * 3];
+        const y = positions.gamepad[i * 3 + 1];
+        const z = positions.gamepad[i * 3 + 2];
+
+        textureIndices[i] = hash(x, y, z);
+
+        const seed1 = x * 12.9898 + y * 78.233 + z * 45.164;
+        const seed2 = x * 19.1919 + y * 91.9191 + z * 28.2828;
+        rnd1Array[i] = seededRandom(seed1);
+        rnd2Array[i] = seededRandom(seed2);
+      }
+
+      // BufferGeometry 생성
+      const bufferGeometry = new THREE.BufferGeometry();
+      bufferGeometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(positions.gamepad, 3)
+      );
+      bufferGeometry.setAttribute(
+        "morphTarget1",
+        new THREE.Float32BufferAttribute(positions.card, 3)
+      );
+      bufferGeometry.setAttribute(
+        "morphTarget2",
+        new THREE.Float32BufferAttribute(positions.saturn, 3)
+      );
+      bufferGeometry.setAttribute(
+        "morphTarget3",
+        new THREE.Float32BufferAttribute(positions.filledSphere, 3)
+      );
+      bufferGeometry.setAttribute(
+        "morphTarget4",
+        new THREE.Float32BufferAttribute(positions.plane, 3)
+      );
+      bufferGeometry.setAttribute(
+        "aTextureIndex",
+        new THREE.Float32BufferAttribute(textureIndices, 1)
+      );
+      bufferGeometry.setAttribute(
+        "aRandom1",
+        new THREE.Float32BufferAttribute(rnd1Array, 1)
+      );
+      bufferGeometry.setAttribute(
+        "aRandom2",
+        new THREE.Float32BufferAttribute(rnd2Array, 1)
+      );
+      bufferGeometry.setAttribute(
+        "aEdgeBrightness",
+        new THREE.Float32BufferAttribute(
+          particleData.gamepadData.edgeBrightness,
+          1
+        )
+      );
+
+      // 위치 저장
+      modelPositionsRef.current = [
+        positions.gamepad,
+        positions.card,
+        positions.saturn,
+        positions.filledSphere,
+        positions.plane,
+      ];
+      sourcePositionsRef.current = new Float32Array(positions.gamepad);
+      currentPositionsRef.current = new Float32Array(positions.gamepad);
+      swarmPositionsRef.current = new Float32Array(particleCount * 3);
+
+      // 노이즈 함수 초기화
+      noise3DRef.current = createNoise3D();
+      noise4DRef.current = createNoise4D();
+
+      return bufferGeometry;
+    },
+    [normalizeWithBounds]
+  );
+
+  // 모델 로딩 및 초기화
+  useEffect(() => {
+    const init = async () => {
+      const models = await loadModels();
+      const particleData = createParticleData(models);
+      const geometry = createGeometry(particleData);
+
+      if (meshRef.current) {
+        meshRef.current.geometry = geometry;
+      }
+    };
+
+    init();
+  }, [loadModels, createParticleData, createGeometry]);
 
   // 모프 트리거 함수
   const triggerMorph = useCallback(() => {
@@ -1296,6 +1258,77 @@ export default function ParticleSystem({
     [onColorSchemeChange]
   );
 
+  // Helper 함수: rotation 적용 및 동기화
+  const applyRotation = useCallback(
+    (
+      rotation:
+        | [number, number, number]
+        | { x?: number; y?: number; z?: number }
+    ) => {
+      if (!wrapperRef.current) return;
+
+      let newX: number, newY: number, newZ: number;
+
+      if (typeof rotation === "object" && !Array.isArray(rotation)) {
+        // 객체 형태: 개별 축 설정
+        const current = wrapperRef.current.rotation;
+        newX = rotation.x !== undefined ? rotation.x : current.x;
+        newY = rotation.y !== undefined ? rotation.y : current.y;
+        newZ = rotation.z !== undefined ? rotation.z : current.z;
+      } else {
+        // 배열 형태: 전체 설정
+        [newX, newY, newZ] = rotation as [number, number, number];
+      }
+
+      wrapperRef.current.rotation.set(newX, newY, newZ);
+      animatableRef.current.rotation.x = newX;
+      animatableRef.current.rotation.y = newY;
+      animatableRef.current.rotation.z = newZ;
+    },
+    []
+  );
+
+  // Helper 함수: position 적용 및 동기화
+  const applyPosition = useCallback(
+    (
+      offset: [number, number, number] | { x?: number; y?: number; z?: number }
+    ) => {
+      if (!wrapperRef.current) return;
+
+      let newX: number, newY: number, newZ: number;
+
+      if (typeof offset === "object" && !Array.isArray(offset)) {
+        // 객체 형태: 개별 축 설정
+        const current = wrapperRef.current.position;
+        newX = offset.x !== undefined ? offset.x : current.x;
+        newY = offset.y !== undefined ? offset.y : current.y;
+        newZ = offset.z !== undefined ? offset.z : current.z;
+      } else {
+        // 배열 형태: 전체 설정
+        [newX, newY, newZ] = offset as [number, number, number];
+      }
+
+      wrapperRef.current.position.set(newX, newY, newZ);
+      animatableRef.current.position.x = newX;
+      animatableRef.current.position.y = newY;
+      animatableRef.current.position.z = newZ;
+    },
+    []
+  );
+
+  // Helper 함수: 모델 인덱스에 따른 influences 계산
+  const getInfluencesByIndex = useCallback((index: number): number[] => {
+    const influences = [0, 0, 0, 0, 0];
+    // 0: gamepad, 1: card, 2: saturn, 3: filledSphere, 4: plane
+    if (index === 1) influences[0] = 1.0; // Card
+    else if (index === 2) {
+      influences[0] = 1.0; // Card를 거쳐야 함
+      influences[1] = 1.0; // Saturn
+    } else if (index === 3) influences[2] = 1.0; // FilledSphere
+    else if (index === 4) influences[3] = 1.0; // Plane
+    return influences;
+  }, []);
+
   // 외부에서 사용할 수 있도록 노출
   useEffect(() => {
     const win = window as Window & {
@@ -1314,7 +1347,11 @@ export default function ParticleSystem({
             | { x?: number; y?: number; z?: number }
         ) => void;
         setOpacity: (opacity: number) => void;
-        setRotation: (rotation: [number, number, number]) => void;
+        setRotation: (
+          rotation:
+            | [number, number, number]
+            | { x?: number; y?: number; z?: number }
+        ) => void;
         animatable: {
           rotation: { x: number; y: number; z: number };
           position: { x: number; y: number; z: number };
@@ -1322,173 +1359,67 @@ export default function ParticleSystem({
         };
       };
     };
+
     win.particleSystem = {
       triggerMorph,
       setColorScheme: handleColorSchemeChange,
       setOpacity: (opacity: number) => {
-        setOpacity(opacity);
         if (shaderMaterialRef.current) {
-          shaderMaterialRef.current.uniforms.uOpacity.value = opacity;
+          shaderMaterialRef.current.uniforms.u_opacity.value = opacity;
         }
       },
-      setRotation: (
-        rotation:
-          | [number, number, number]
-          | { x?: number; y?: number; z?: number }
-      ) => {
-        if (wrapperRef.current) {
-          // 객체 형태로 전달된 경우 (개별 축 설정)
-          if (typeof rotation === "object" && !Array.isArray(rotation)) {
-            const currentX = wrapperRef.current.rotation.x;
-            const currentY = wrapperRef.current.rotation.y;
-            const currentZ = wrapperRef.current.rotation.z;
-
-            const newX = rotation.x !== undefined ? rotation.x : currentX;
-            const newY = rotation.y !== undefined ? rotation.y : currentY;
-            const newZ = rotation.z !== undefined ? rotation.z : currentZ;
-
-            wrapperRef.current.rotation.set(newX, newY, newZ);
-            // animatableRef도 동기화
-            animatableRef.current.rotation.x = newX;
-            animatableRef.current.rotation.y = newY;
-            animatableRef.current.rotation.z = newZ;
-            setRotation([newY, newX, newZ]); // 상태 업데이트 (순서 주의)
-          } else {
-            // 배열 형태로 전달된 경우 (전체 설정)
-            const [x, y, z] = rotation as [number, number, number];
-            wrapperRef.current.rotation.set(x, y, z);
-            // animatableRef도 동기화
-            animatableRef.current.rotation.x = x;
-            animatableRef.current.rotation.y = y;
-            animatableRef.current.rotation.z = z;
-            setRotation([y, x, z]); // 상태 업데이트 (순서 주의)
-          }
-        }
-      },
+      setRotation: applyRotation,
       setUseTexture: (use: boolean) => {
         if (shaderMaterialRef.current) {
           shaderMaterialRef.current.uniforms.uUseTexture.value = use
             ? 1.0
             : 0.0;
-          console.log("텍스처 사용 여부 변경:", use);
         }
       },
       setMorphProgress: () => {
         // 스크롤 기반 morph progress 설정 (사용하지 않음)
-        // shader의 u_morphTargetInfluences는 setInfluences에서 직접 제어
       },
       setTargetModelIndex: (index: number) => {
-        // 목표 모델 인덱스에 따라 shader의 u_morphTargetInfluences 직접 설정
+        const influences = getInfluencesByIndex(index);
         if (shaderMaterialRef.current) {
-          const influences = [0, 0, 0, 0, 0]; // 5개 모르프 타겟
-
-          // index: 0 = gamepad, 1 = card, 2 = saturn, 3 = filledSphere, 4 = plane
-          if (index === 0) {
-            // Gamepad (기본 position, influence 없음)
-            influences[0] = 0;
-            influences[1] = 0;
-            influences[2] = 0;
-            influences[3] = 0;
-          } else if (index === 1) {
-            // Card (morphTarget1)
-            influences[0] = 1.0;
-            influences[1] = 0;
-            influences[2] = 0;
-            influences[3] = 0;
-          } else if (index === 2) {
-            // Saturn (morphTarget2)
-            influences[0] = 1.0; // Card를 거쳐야 함
-            influences[1] = 1.0;
-            influences[2] = 0;
-            influences[3] = 0;
-          } else if (index === 3) {
-            // FilledSphere (morphTarget3)
-            influences[0] = 0;
-            influences[1] = 0;
-            influences[2] = 1.0;
-            influences[3] = 0;
-          } else if (index === 4) {
-            // Plane (morphTarget4)
-            influences[0] = 0;
-            influences[1] = 0;
-            influences[2] = 0;
-            influences[3] = 1.0;
-          }
-
           shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
             influences;
+          animatableRef.current.influences = [...influences];
         }
-
         nextModelIndexRef.current = index;
         setCurrentModelIndex(index);
       },
       setInfluences: (influences: number[]) => {
-        // Shader의 u_morphTargetInfluences를 직접 설정
         if (shaderMaterialRef.current) {
           shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
             influences;
-          // animatableRef도 동기화
           animatableRef.current.influences = [...influences];
         }
       },
       animatable: animatableRef.current,
       setScale: (scale: number) => {
-        setParticleScale(scale);
         if (shaderMaterialRef.current) {
           shaderMaterialRef.current.uniforms.u_scale.value = scale;
         }
       },
       setScatter: (scatter: number) => {
-        setScatterAmount(scatter);
         if (shaderMaterialRef.current) {
           shaderMaterialRef.current.uniforms.uScatterAmount.value = scatter;
         }
       },
-      setModelOffset: (
-        offset:
-          | [number, number, number]
-          | { x?: number; y?: number; z?: number }
-      ) => {
-        if (wrapperRef.current) {
-          // 객체 형태로 전달된 경우 (개별 축 설정)
-          if (typeof offset === "object" && !Array.isArray(offset)) {
-            const currentX = wrapperRef.current.position.x;
-            const currentY = wrapperRef.current.position.y;
-            const currentZ = wrapperRef.current.position.z;
-
-            const newX = offset.x !== undefined ? offset.x : currentX;
-            const newY = offset.y !== undefined ? offset.y : currentY;
-            const newZ = offset.z !== undefined ? offset.z : currentZ;
-
-            wrapperRef.current.position.set(newX, newY, newZ);
-            // animatableRef도 동기화
-            animatableRef.current.position.x = newX;
-            animatableRef.current.position.y = newY;
-            animatableRef.current.position.z = newZ;
-            setModelOffset([newY, newX, newZ]); // 상태 업데이트 (순서 주의)
-          } else {
-            // 배열 형태로 전달된 경우 (전체 설정)
-            const [x, y, z] = offset as [number, number, number];
-            wrapperRef.current.position.set(x, y, z);
-            // animatableRef도 동기화
-            animatableRef.current.position.x = x;
-            animatableRef.current.position.y = y;
-            animatableRef.current.position.z = z;
-            setModelOffset([y, x, z]); // 상태 업데이트 (순서 주의)
-          }
-        }
-      },
+      setModelOffset: applyPosition,
     };
-
-    // 디버그: 시스템이 준비되었는지 확인
-    console.log(
-      "ParticleSystem ready, triggerMorph and setColorScheme available"
-    );
 
     return () => {
       delete win.particleSystem;
     };
-  }, [triggerMorph, handleColorSchemeChange]);
+  }, [
+    triggerMorph,
+    handleColorSchemeChange,
+    applyRotation,
+    applyPosition,
+    getInfluencesByIndex,
+  ]);
 
   // 클릭 이벤트 제거됨 - 버튼을 통해서만 morph 가능
 
@@ -1527,6 +1458,11 @@ export default function ParticleSystem({
         animatableRef.current.position.x,
         animatableRef.current.position.y,
         animatableRef.current.position.z
+      );
+      wrapperRef.current.scale.set(
+        animatableRef.current.scale.x,
+        animatableRef.current.scale.y,
+        animatableRef.current.scale.z
       );
     }
 

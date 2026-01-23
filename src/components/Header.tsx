@@ -81,19 +81,27 @@ const Header = () => {
               {isScrolled ? (
                 <div className={styles.single_button}>
                   <Button size="large">
-                    <span>PLAY NOW</span>
+                    <a href="https://www.mggarena.com" target="_blank">
+                      <span>PLAY NOW</span>
+                    </a>
                   </Button>
                 </div>
               ) : (
                 <div className={styles.button_group}>
                   <Button>
-                    <img src="/image/mega_arena.png" alt="MGG ARENA" />
+                    <a href="https://www.mggarena.com" target="_blank">
+                      <img src="/image/mega_arena.png" alt="MGG ARENA" />
+                    </a>
                   </Button>
                   <Button>
-                    <img src="/image/mimbo.png" alt="MIMBO NODE" />
+                    <a href="https://mining.mimbonode.io/login" target="_blank">
+                      <img src="/image/mimbo.png" alt="MIMBO NODE" />
+                    </a>
                   </Button>
                   <Button>
-                    <img src="/image/fellascard.png" alt="FELLAS CARD" />
+                    <a href="https://www.fellascard.com/login" target="_blank">
+                      <img src="/image/fellascard.png" alt="FELLAS CARD" />
+                    </a>
                   </Button>
                 </div>
               )}
@@ -150,13 +158,19 @@ const Header = () => {
             {/* Action Buttons */}
             <div className={styles.mobile_button_group}>
               <Button>
-                <img src="/image/mega_arena.png" alt="MGG ARENA" />
+                <a href="https://www.mggarena.com" target="_blank">
+                  <img src="/image/mega_arena.png" alt="MGG ARENA" />
+                </a>
               </Button>
               <Button>
-                <img src="/image/mimbo.png" alt="MIMBO NODE" />
+                <a href="https://mining.mimbonode.io/login" target="_blank">
+                  <img src="/image/mimbo.png" alt="MIMBO NODE" />
+                </a>
               </Button>
               <Button>
-                <img src="/image/fellascard.png" alt="FELLAS CARD" />
+                <a href="https://www.fellascard.com/login" target="_blank">
+                  <img src="/image/fellascard.png" alt="FELLAS CARD" />
+                </a>
               </Button>
             </div>
           </div>
