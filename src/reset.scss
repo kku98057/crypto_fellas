@@ -42,6 +42,14 @@ img {
   --primary: #00c3ff;
   --white: #fff;
   --blue: #0055ff;
+
+  --header-bg: rgba(0, 0, 0, 0.1);
+  --header-border: rgba(255, 255, 255, 0.08);
+  --header-border-scrolled: rgba(86, 204, 242, 0.2);
+  --text-color: #ffffff;
+  --text-hover: #56ccf2;
+  --transition-smooth: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --blur-amount: 12px;
 }
 
 section {

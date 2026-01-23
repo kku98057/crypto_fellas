@@ -8,6 +8,8 @@ import {
   generateSphere,
   generateCube,
   generatePyramid,
+  generateFilledSphere,
+  generatePlane,
 } from "../../utils/shapeGenerators";
 import vertexShader from "../../shaders/particles/vertex.glsl?raw";
 import fragmentShader from "../../shaders/particles/fragment.glsl?raw";
@@ -15,7 +17,10 @@ import {
   MORPH_CONFIG,
   NAME_DENSITY_WEIGHTS,
   NAME_EDGE_BRIGHTNESS,
+  PARTICLE_COUNT,
   PARTICLE_MODEL_PATH,
+  PARTICLE_SHAPE_SIZE,
+  PARTICLE_SIZE_SCALE,
   TEXTURE_PATHS,
 } from "../../enum/ParticlesEnum";
 
@@ -367,8 +372,15 @@ export default function ParticleSystem({
   const [currentModelIndex, setCurrentModelIndex] = useState(0);
   const nextModelIndexRef = useRef<number>(0);
 
+  // 스크롤 애니메이션 상태 (직접 사용하지 않고 setter만 사용)
+  const [, setParticleScale] = useState(2.0); // 초기 크기: 크게
+  const [, setScatterAmount] = useState(1.0); // 초기 산포: 완전히 흩어짐
+  const [, setModelOffset] = useState<[number, number, number]>([0, 0, 0]); // 모델 위치 오프셋
+  const [, setOpacity] = useState(1.0); // 투명도
+  const [, setRotation] = useState<[number, number, number]>([0, 0, 0]); // 모델 회전
+
   // 색상 스킴 상태
-  const [colorScheme, setColorScheme] = useState<ColorScheme>("fire");
+  const [colorScheme, setColorScheme] = useState<ColorScheme>("rainbow");
 
   // 위치 배열들
   const modelPositionsRef = useRef<Float32Array[]>([]);
@@ -516,20 +528,20 @@ export default function ParticleSystem({
       }
     }
 
-    // 기본 모델 Y 범위 (targetSize = 10일 때 대략 -5 ~ 5)
-    const targetSize = 10;
-    const defaultMinY = -targetSize / 2;
-    const defaultMaxY = targetSize / 2;
+    // 기본 모델 Y 범위 (PARTICLE_SHAPE_SIZE 기반)
+    const defaultMinY = -PARTICLE_SHAPE_SIZE / 2;
+    const defaultMaxY = PARTICLE_SHAPE_SIZE / 2;
 
     return new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        u_scale: { value: 0.4 },
+        u_scale: { value: PARTICLE_SIZE_SCALE }, // 파티클 크기 (ParticlesEnum.ts에서 조정 가능)
         u_opacity: { value: 1 },
-        u_morphTargetInfluences: { value: [0, 0, 0, 0] },
+        u_morphTargetInfluences: { value: [0, 0, 0, 0, 0] }, // 5개 모르프 타겟
         uMorphProgress: { value: 0 },
         uEffectStrength: { value: 0 },
         uNoiseStrength: { value: 0 },
+        uScatterAmount: { value: 1.0 }, // 초기 산포: 완전히 흩어짐
         uSwirlFactor: { value: MORPH_CONFIG.swirlFactor },
         // 색상 배열 uniform 추가
         uColors: { value: colorValues },
@@ -707,7 +719,8 @@ export default function ParticleSystem({
         console.log("===================");
 
         // 모델이 있으면 중앙 정렬 및 동일 크기로 스케일링
-        const targetSize = 10; // 모든 모델을 이 크기로 통일
+        // PARTICLE_SHAPE_SIZE를 targetSize로 사용 (ParticlesEnum.ts에서 조정 가능)
+        const targetSize = PARTICLE_SHAPE_SIZE; // 모든 모델을 이 크기로 통일
         [gamepad, card, saturn].forEach((result, index) => {
           if (result) {
             centerModels(result.scene, targetSize);
@@ -730,8 +743,8 @@ export default function ParticleSystem({
         ];
 
         // 파티클 생성 (모델이 없으면 기본 형태 사용)
-        const particleCount = 12000;
-        const shapeSize = 10; // 기본 형태도 동일한 크기로
+        const particleCount = PARTICLE_COUNT;
+        const shapeSize = PARTICLE_SHAPE_SIZE; // 기본 형태도 동일한 크기로
 
         // Gamepad 모델 파티클 생성
         const gamepadData = gamepad
@@ -774,6 +787,22 @@ export default function ParticleSystem({
                 NAME_EDGE_BRIGHTNESS.default
               ),
             };
+
+        // 4번째 모르프: 내부가 가득 찬 Sphere 생성 (화면을 덮을 수 있을 만큼 큰 구)
+        const filledSphereData = {
+          positions: generateFilledSphere(particleCount, shapeSize),
+          edgeBrightness: new Float32Array(particleCount).fill(
+            NAME_EDGE_BRIGHTNESS.default
+          ),
+        };
+
+        // 5번째 모르프: Plane 생성
+        const planeData = {
+          positions: generatePlane(particleCount, shapeSize),
+          edgeBrightness: new Float32Array(particleCount).fill(
+            NAME_EDGE_BRIGHTNESS.default
+          ),
+        };
 
         // 모든 파티클 위치를 동일한 크기로 정규화 (모델별 바운딩 박스 계산)
         const normalizeWithBounds = (
@@ -825,10 +854,20 @@ export default function ParticleSystem({
           saturnData.positions,
           targetSize
         );
+        const filledSphereNormalized = normalizeWithBounds(
+          filledSphereData.positions,
+          targetSize
+        );
+        const planeNormalized = normalizeWithBounds(
+          planeData.positions,
+          targetSize
+        );
 
         const gamepadPositions = gamepadNormalized.positions;
         const cardPositions = cardNormalized.positions;
         const saturnPositions = saturnNormalized.positions;
+        const filledSpherePositions = filledSphereNormalized.positions;
+        const planePositions = planeNormalized.positions;
 
         // 현재 모델의 Y 범위 저장 (기본값: gamepad)
         const currentMinY = gamepadNormalized.minY;
@@ -902,6 +941,14 @@ export default function ParticleSystem({
           new THREE.Float32BufferAttribute(saturnPositions, 3)
         );
         bufferGeometry.setAttribute(
+          "morphTarget3",
+          new THREE.Float32BufferAttribute(filledSpherePositions, 3)
+        );
+        bufferGeometry.setAttribute(
+          "morphTarget4",
+          new THREE.Float32BufferAttribute(planePositions, 3)
+        );
+        bufferGeometry.setAttribute(
           "aTextureIndex",
           new THREE.Float32BufferAttribute(textureIndices, 1)
         );
@@ -942,11 +989,13 @@ export default function ParticleSystem({
         console.log("Geometry 속성:", Object.keys(bufferGeometry.attributes));
         console.log("===================");
 
-        // 모델 위치 저장
+        // 모델 위치 저장 (5개 모르프)
         modelPositionsRef.current = [
           gamepadPositions,
           cardPositions,
           saturnPositions,
+          filledSpherePositions,
+          planePositions,
         ];
         sourcePositionsRef.current = new Float32Array(gamepadPositions);
         currentPositionsRef.current = new Float32Array(gamepadPositions);
@@ -968,71 +1017,6 @@ export default function ParticleSystem({
     };
 
     loadModels();
-  }, []);
-
-  // 스크롤에 따른 morph target 업데이트
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!shaderMaterialRef.current) return;
-
-      // 스크롤 진행도 계산 (0 ~ 1)
-      const scrollHeight =
-        document.documentElement.scrollHeight - window.innerHeight;
-      const scrollProgress = Math.min(
-        Math.max(window.scrollY / Math.max(scrollHeight, 1), 0),
-        1
-      );
-
-      // 스크롤 진행도에 따라 morph target 변경 (간단하게)
-      const influences = [0, 0, 0, 0];
-
-      if (scrollProgress < 0.2) {
-        // 로켓 (기본) - 0~20%
-        influences[0] = 0;
-        influences[1] = 0;
-        influences[2] = 0;
-        influences[3] = 0;
-      } else if (scrollProgress < 0.4) {
-        // 벚꽃 흩어짐 - 20~40%
-        const t = (scrollProgress - 0.2) / 0.2;
-        influences[0] = t;
-        influences[1] = 0;
-        influences[2] = 0;
-        influences[3] = 0;
-      } else if (scrollProgress < 0.6) {
-        // 사람 - 40~60%
-        const t = (scrollProgress - 0.4) / 0.2;
-        influences[0] = 1.0 - t;
-        influences[1] = t;
-        influences[2] = 0;
-        influences[3] = 0;
-      } else if (scrollProgress < 0.8) {
-        // 행성 - 60~80%
-        const t = (scrollProgress - 0.6) / 0.2;
-        influences[0] = 0;
-        influences[1] = 1.0 - t;
-        influences[2] = t;
-        influences[3] = 0;
-      } else {
-        // 수화기 - 80~100%
-        const t = (scrollProgress - 0.8) / 0.2;
-        influences[0] = 0;
-        influences[1] = 0;
-        influences[2] = 1.0 - t;
-        influences[3] = t;
-      }
-
-      shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
-        influences;
-    };
-
-    // 초기값 설정
-    handleScroll();
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
   }, []);
 
   // 모프 트리거 함수
@@ -1122,12 +1106,20 @@ export default function ParticleSystem({
 
           console.log("모프 완료 - 위치 업데이트:", {
             modelIndex: nextModelIndex,
-            modelName: ["Rocket", "Man", "Saturn", "Telephone"][nextModelIndex],
+            modelName: ["Gamepad", "Card", "Saturn", "FilledSphere", "Plane"][
+              nextModelIndex
+            ],
           });
         }
         setMorphProgress(0);
         setIsMorphing(false);
-        const modelNames = ["Gamepad", "Card", "Saturn"];
+        const modelNames = [
+          "Gamepad",
+          "Card",
+          "Saturn",
+          "FilledSphere",
+          "Plane",
+        ];
         onShapeChange?.(modelNames[nextModelIndex]);
         morphTimelineRef.current = null;
       }
@@ -1307,11 +1299,32 @@ export default function ParticleSystem({
         setMorphProgress: (progress: number) => void;
         setTargetModelIndex: (index: number) => void;
         setInfluences: (influences: number[]) => void;
+        setScale: (scale: number) => void;
+        setScatter: (scatter: number) => void;
+        setModelOffset: (offset: [number, number, number]) => void;
+        setOpacity: (opacity: number) => void;
+        setRotation: (rotation: [number, number, number]) => void;
       };
     };
     win.particleSystem = {
       triggerMorph,
       setColorScheme: handleColorSchemeChange,
+      setOpacity: (opacity: number) => {
+        setOpacity(opacity);
+        if (shaderMaterialRef.current) {
+          shaderMaterialRef.current.uniforms.uOpacity.value = opacity;
+        }
+      },
+      setRotation: (rotation: [number, number, number]) => {
+        setRotation(rotation);
+        if (wrapperRef.current) {
+          wrapperRef.current.rotation.set(
+            rotation[0],
+            rotation[1],
+            rotation[2]
+          );
+        }
+      },
       setUseTexture: (use: boolean) => {
         if (shaderMaterialRef.current) {
           shaderMaterialRef.current.uniforms.uUseTexture.value = use
@@ -1327,21 +1340,39 @@ export default function ParticleSystem({
       setTargetModelIndex: (index: number) => {
         // 목표 모델 인덱스에 따라 shader의 u_morphTargetInfluences 직접 설정
         if (shaderMaterialRef.current) {
-          const influences = [0, 0, 0, 0];
+          const influences = [0, 0, 0, 0, 0]; // 5개 모르프 타겟
 
-          // index: 0 = gamepad, 1 = card, 2 = saturn
+          // index: 0 = gamepad, 1 = card, 2 = saturn, 3 = filledSphere, 4 = plane
           if (index === 0) {
             // Gamepad (기본 position, influence 없음)
             influences[0] = 0;
             influences[1] = 0;
+            influences[2] = 0;
+            influences[3] = 0;
           } else if (index === 1) {
             // Card (morphTarget1)
             influences[0] = 1.0;
             influences[1] = 0;
+            influences[2] = 0;
+            influences[3] = 0;
           } else if (index === 2) {
             // Saturn (morphTarget2)
             influences[0] = 1.0; // Card를 거쳐야 함
             influences[1] = 1.0;
+            influences[2] = 0;
+            influences[3] = 0;
+          } else if (index === 3) {
+            // FilledSphere (morphTarget3)
+            influences[0] = 0;
+            influences[1] = 0;
+            influences[2] = 1.0;
+            influences[3] = 0;
+          } else if (index === 4) {
+            // Plane (morphTarget4)
+            influences[0] = 0;
+            influences[1] = 0;
+            influences[2] = 0;
+            influences[3] = 1.0;
           }
 
           shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
@@ -1356,6 +1387,24 @@ export default function ParticleSystem({
         if (shaderMaterialRef.current) {
           shaderMaterialRef.current.uniforms.u_morphTargetInfluences.value =
             influences;
+        }
+      },
+      setScale: (scale: number) => {
+        setParticleScale(scale);
+        if (shaderMaterialRef.current) {
+          shaderMaterialRef.current.uniforms.u_scale.value = scale;
+        }
+      },
+      setScatter: (scatter: number) => {
+        setScatterAmount(scatter);
+        if (shaderMaterialRef.current) {
+          shaderMaterialRef.current.uniforms.uScatterAmount.value = scatter;
+        }
+      },
+      setModelOffset: (offset: [number, number, number]) => {
+        setModelOffset(offset);
+        if (wrapperRef.current) {
+          wrapperRef.current.position.set(offset[0], offset[1], offset[2]);
         }
       },
     };

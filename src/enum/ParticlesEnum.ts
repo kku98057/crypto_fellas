@@ -1,3 +1,6 @@
+export const PARTICLE_COUNT = 12000;
+export const PARTICLE_SHAPE_SIZE = 12; // 모델 전체 크기
+export const PARTICLE_SIZE_SCALE = 0.4; // 파티클 개별 크기 (기본값: 0.4)
 /**
  * 이름 기반 밀도 가중치 설정
  * 이름에 따라 입자 밀도를 조정할 수 있습니다.
@@ -54,7 +57,8 @@ export const TEXTURE_PATHS = [
   //   "/image/investors/2.png",
   //   "/image/investors/3.png",
   //   "/image/investors/4.png",
-  "/image/investors/5.png",
+  //   "/image/investors/5.png",
+  "/image/triangle_sample.png",
 ];
 
 /**

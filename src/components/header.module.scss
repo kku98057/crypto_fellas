@@ -1,14 +1,3 @@
-// CSS Custom Properties (Modern CSS Variables)
-:root {
-  --header-bg: rgba(13, 13, 18, 0.6);
-  --header-border: rgba(255, 255, 255, 0.08);
-  --header-border-scrolled: rgba(86, 204, 242, 0.2);
-  --text-color: #ffffff;
-  --text-hover: #56ccf2;
-  --transition-smooth: 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  --blur-amount: 12px;
-}
-
 .header_wrapper {
   position: fixed;
   top: 24px;
