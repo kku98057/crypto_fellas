@@ -917,7 +917,7 @@ export default function Home() {
           top: 0,
           left: 0,
           width: "100vw",
-          height: "100vh",
+          height: "calc(var(--vh, 1vh) * 100)",
           zIndex: 0,
         }}
       >
@@ -1366,6 +1366,12 @@ export default function Home() {
             <div className={styles.title}>
               <h3 className={styles.title_text}>MGG Vision</h3>
               <p className={styles.desc}>Our Promise to Recreate Destiny</p>
+              <p className={styles.desc_mobile}>
+                Beyond a simple game economy, MGG is engineered as a
+                deflationary ecosystem where all participation immediately
+                translates into scarcity creation. The following essential
+                components guarantee the ultimate value of the MGG Token.
+              </p>
             </div>
             <div className={styles.contents}>
               <div className={styles.vision_item}>
@@ -1406,19 +1412,19 @@ export default function Home() {
               </h5>
             </div>
             <div className={styles.contents}>
-              <Button size="large">
-                <a href="https://mining.mimbonode.io/login" target="_blank">
-                  <span>MIMBO NODE</span>
-                </a>
-              </Button>
-              <Button size="large">
+              <Button>
                 <a href="https://www.mggarena.com" target="_blank">
-                  <span>MGG Arean</span>
+                  <img src="/image/mega_arena.png" alt="MGG ARENA" />
                 </a>
               </Button>
-              <Button size="large">
+              <Button>
+                <a href="https://mining.mimbonode.io/login" target="_blank">
+                  <img src="/image/mimbo.png" alt="MIMBO NODE" />
+                </a>
+              </Button>
+              <Button>
                 <a href="https://www.fellascard.com/login" target="_blank">
-                  <span>Fellas card</span>
+                  <img src="/image/fellascard.png" alt="FELLAS CARD" />
                 </a>
               </Button>
             </div>

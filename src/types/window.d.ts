@@ -24,7 +24,9 @@ interface Window {
   };
   particleSystem?: {
     triggerMorph: () => void;
-    setColorScheme: (scheme: string) => void;
+    setColorScheme: (
+      scheme: "fire" | "neon" | "nature" | "rainbow" | "red" | "sunset"
+    ) => void;
     setUseTexture: (use: boolean) => void;
     setMorphProgress: (progress: number) => void;
     setTargetModelIndex: (index: number) => void;

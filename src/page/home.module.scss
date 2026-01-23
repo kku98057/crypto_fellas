@@ -2,7 +2,7 @@ body {
   overflow-x: hidden !important;
 }
 section {
-  height: 100dvh;
+  height: 100vh;
   width: 100%;
   position: relative;
   z-index: 1;
@@ -27,7 +27,7 @@ section {
     line-height: 130%;
     letter-spacing: -0.03em;
     color: var(--white);
-    font-family: var(--font-dm-sans);
+    font-family: var(--font-fam);
     font-weight: 900;
     text-transform: uppercase;
   }
@@ -37,7 +37,7 @@ section {
     text-align: center;
     color: var(--white);
     font-weight: 700;
-    font-family: var(--font-dm-sans);
+    font-family: var(--font-fam);
   }
 }
 .hero {
@@ -53,7 +53,7 @@ section {
     gap: 5.625rem;
     width: 100%;
     &_text {
-      font-family: var(--font-dm-sans);
+      font-family: var(--font-fam);
       font-size: 24px;
       color: var(--white);
       text-align: center;
@@ -75,7 +75,7 @@ section {
         align-items: center;
         justify-content: center;
         strong {
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           font-size: 48px;
           font-weight: 700;
           color: var(--white);
@@ -83,7 +83,7 @@ section {
           text-align: center;
         }
         span {
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           font-size: 21.008px;
           font-weight: 700;
           text-align: center;
@@ -115,7 +115,7 @@ section {
     width: 100%;
     position: relative;
     &_text {
-      font-family: var(--font-dm-sans);
+      font-family: var(--font-fam);
       max-width: 1150px;
       font-size: 24px;
       color: var(--white);
@@ -172,7 +172,7 @@ section {
           }
         }
         strong {
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           font-size: 36px;
           font-weight: 700;
           color: var(--white);
@@ -183,7 +183,7 @@ section {
           display: inline-block;
         }
         span {
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           font-size: 21px;
           font-weight: 700;
           white-space: nowrap;
@@ -263,7 +263,7 @@ section {
 
 .keypoint {
   height: auto;
-  padding-top: 25dvh;
+  padding-top: 25vh;
   .contents {
     width: 100%;
     position: relative;
@@ -273,7 +273,7 @@ section {
     .keypoint_item {
       width: 100%;
       display: flex;
-      height: 150dvh;
+      height: 150vh;
       align-items: center;
       .models {
         flex: 1;
@@ -284,7 +284,7 @@ section {
           color: var(--primary);
           font-size: 1.313rem;
           font-weight: bold;
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           line-height: 120%;
           letter-spacing: -0.03em;
         }
@@ -295,13 +295,13 @@ section {
           line-height: 120%;
           letter-spacing: -0.03em;
           font-weight: 900;
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           color: var(--white);
         }
         p {
           font-size: 1rem;
           font-weight: 500;
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           line-height: 150%;
           color: var(--white);
         }
@@ -319,6 +319,9 @@ section {
 .vision {
   .title {
     margin-bottom: 168px;
+    .desc_mobile {
+      display: none;
+    }
   }
   .contents {
     width: 100%;
@@ -335,7 +338,7 @@ section {
           color: var(--white);
           font-size: 3rem;
           font-weight: bold;
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           line-height: 120%;
           letter-spacing: -0.03em;
         }
@@ -345,13 +348,13 @@ section {
           line-height: 120%;
           letter-spacing: -0.03em;
           font-weight: 700;
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           color: var(--primary);
         }
         p {
           font-size: 1rem;
           font-weight: 400;
-          font-family: var(--font-dm-sans);
+          font-family: var(--font-fam);
           line-height: 150%;
           color: var(--white);
         }
@@ -368,7 +371,7 @@ section {
       line-height: 130%;
       letter-spacing: -0.03em;
       color: var(--white);
-      font-family: var(--font-dm-sans);
+      font-family: var(--font-fam);
       font-weight: 900;
       color: var(--white);
       span {
@@ -421,7 +424,7 @@ section {
   }
 
   &_text {
-    font-family: var(--font-dm-sans);
+    font-family: var(--font-fam);
     font-size: 1.5rem;
     color: var(--white);
     font-weight: 500;
@@ -461,6 +464,9 @@ section {
   }
 }
 @media all and (max-width: 1024px) {
+  :root {
+    --font-fam: "Poppins", sans-serif;
+  }
   .hero {
     .title {
       .title_text {
@@ -487,7 +493,7 @@ section {
           align-items: center;
           justify-content: center;
           strong {
-            font-family: var(--font-dm-sans);
+            font-family: var(--font-fam);
             font-size: 2rem;
             font-weight: 700;
             color: var(--white);
@@ -495,7 +501,7 @@ section {
             text-align: center;
           }
           span {
-            font-family: var(--font-dm-sans);
+            font-family: var(--font-fam);
             font-size: 1rem;
             font-weight: 700;
             text-align: center;
@@ -513,6 +519,7 @@ section {
     }
     .desc {
       font-size: clamp(18px, 2.5vw, 36px);
+      font-weight: 500;
     }
   }
   .container {
@@ -551,7 +558,7 @@ section {
           span {
             font-size: 15px;
 
-            font-family: var(--font-dm-sans);
+            font-family: var(--font-fam);
             text-align: left;
           }
         }
@@ -585,7 +592,7 @@ section {
   }
 
   .container {
-    max-width: 100%;
+    max-width: 768px;
     padding-inline: 0.5rem;
   }
   .title {
@@ -717,7 +724,7 @@ section {
           span {
             font-size: 15px;
             white-space: nowrap;
-            font-family: var(--font-dm-sans);
+            font-family: var(--font-fam);
             text-align: left;
           }
         }
@@ -730,6 +737,83 @@ section {
         br {
           display: none;
         }
+      }
+    }
+  }
+
+  .keypoint {
+    .contents {
+      .keypoint_item {
+        .contents_data {
+          span {
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            font-weight: 600;
+          }
+          h3 {
+            font-size: clamp(2.5rem, 2.5vw, 3.5rem);
+            font-weight: 600;
+          }
+          p {
+            font-size: 1rem;
+          }
+        }
+        .models {
+          display: none;
+        }
+      }
+    }
+  }
+  .vision {
+    .title {
+      .desc_mobile {
+        display: block;
+        margin-top: 2rem;
+        font-size: clamp(14px, 2.5vw, 1rem);
+        font-weight: 400;
+
+        line-height: 150%;
+        color: var(--white);
+        text-align: center;
+      }
+    }
+    .contents {
+      .vision_item {
+        .contents_data {
+          span {
+            font-size: clamp(24px, 2.5vw, 5rem);
+          }
+          h3 {
+            font-size: clamp(32px, 2.5vw, 5rem);
+          }
+          p {
+            font-size: clamp(14px, 2.5vw, 1rem);
+          }
+        }
+      }
+    }
+  }
+  .end {
+    .title {
+      .title_text {
+        font-size: clamp(36px, 2.5vw, 5rem);
+        font-weight: 700;
+        span {
+          color: white;
+        }
+      }
+    }
+    .contents {
+      width: 100%;
+      max-width: 360px;
+      justify-content: space-between;
+      gap: 17px;
+      button {
+        width: 100%;
+        max-width: 103px;
+      }
+      img {
+        width: auto;
+        height: 21px;
       }
     }
   }

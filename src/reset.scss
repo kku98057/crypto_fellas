@@ -37,7 +37,8 @@ img {
     Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR",
     "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
     sans-serif;
-  --font-popins: "Poppins", sans-serif;
+  --font-fam: "DM Sans", sans-serif;
+  --font-poppins: "Poppins", sans-serif;
   --font-dm-sans: "DM Sans", sans-serif;
   --primary: #00c3ff;
   --white: #fff;
@@ -66,4 +67,9 @@ canvas {
   left: 0;
   width: 100vw;
   height: 100dvh;
+}
+
+body {
+  position: relative;
+  overflow-x: hidden;
 }
