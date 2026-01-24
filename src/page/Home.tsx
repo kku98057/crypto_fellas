@@ -12,10 +12,11 @@ import { PARTICLE_SIZE_SCALE } from "../enum/ParticlesEnum";
 import styles from "./home.module.scss";
 import Button from "../components/Button";
 import { SplitText } from "gsap/SplitText";
+
 // GSAP ScrollTrigger 등록
-const SCRUB = 0.5;
-gsap.registerPlugin(ScrollTrigger);
-gsap.registerPlugin(SplitText);
+const SCRUB = 1;
+
+gsap.registerPlugin(SplitText, ScrollTrigger);
 interface PostProcessingConfig {
   bloom: {
     enabled: boolean;
@@ -74,7 +75,7 @@ export default function Home() {
     useState<PostProcessingConfig>({
       bloom: {
         enabled: true, // Bloom 켜기
-        intensity: 1.5,
+        intensity: 1,
         threshold: 0.3, // 낮춤 (더 많은 부분이 빛남)
         smoothing: 0.025,
       },
@@ -411,19 +412,13 @@ export default function Home() {
         scrollTrigger: {
           fastScrollEnd: true,
           trigger: sectionsRef.current[1],
-          end: "+=400%",
+          end: "+=900% ",
           pin: true,
+
           scrub: SCRUB,
         },
       })
-      .to(
-        win.particleSystem.animatable.rotation,
-        {
-          y: 360 * (Math.PI / 180),
-          duration: 8,
-        },
-        0
-      )
+
       .to(
         win.particleSystem.animatable.scale,
         {
@@ -464,7 +459,7 @@ export default function Home() {
         {
           opacity: 0,
         },
-        0.5
+        1
       )
 
       .from(
@@ -474,7 +469,7 @@ export default function Home() {
         {
           opacity: 0,
         },
-        1
+        1.5
       )
       .to(
         sectionsRef.current[1].querySelector(
@@ -483,29 +478,11 @@ export default function Home() {
         {
           opacity: 0,
         },
-        1.5
-      )
-      .from(
-        sectionsRef.current[1].querySelector(
-          `.${styles.contents_text} span:nth-child(2)`
-        ),
-        {
-          opacity: 0,
-        },
-        2
-      )
-      .to(
-        sectionsRef.current[1].querySelector(
-          `.${styles.contents_text} span:nth-child(2)`
-        ),
-        {
-          opacity: 0,
-        },
         2.5
       )
       .from(
         sectionsRef.current[1].querySelector(
-          `.${styles.contents_text} span:nth-child(3)`
+          `.${styles.contents_text} span:nth-child(2)`
         ),
         {
           opacity: 0,
@@ -514,12 +491,30 @@ export default function Home() {
       )
       .to(
         sectionsRef.current[1].querySelector(
+          `.${styles.contents_text} span:nth-child(2)`
+        ),
+        {
+          opacity: 0,
+        },
+        4
+      )
+      .from(
+        sectionsRef.current[1].querySelector(
           `.${styles.contents_text} span:nth-child(3)`
         ),
         {
           opacity: 0,
         },
-        3.5
+        4.5
+      )
+      .to(
+        sectionsRef.current[1].querySelector(
+          `.${styles.contents_text} span:nth-child(3)`
+        ),
+        {
+          opacity: 0,
+        },
+        5.5
       )
       .from(
         sectionsRef.current[1].querySelector(
@@ -528,7 +523,7 @@ export default function Home() {
         {
           opacity: 0,
         },
-        4
+        6
       )
       .to(
         sectionsRef.current[1].querySelector(
@@ -537,7 +532,7 @@ export default function Home() {
         {
           opacity: 0,
         },
-        4.5
+        6.5
       )
       .to(
         win.particleSystem.animatable.scale,
@@ -547,7 +542,7 @@ export default function Home() {
           z: 1,
           duration: 2,
         },
-        4.5
+        6.5
       )
 
       .to(
@@ -560,7 +555,7 @@ export default function Home() {
           "4": 0,
           duration: 2,
         },
-        4.5
+        6.5
       )
       .from(
         sectionsRef.current[1].querySelector(`.${styles.contents_list}`),
@@ -568,7 +563,7 @@ export default function Home() {
           opacity: 0,
           duration: 1.5,
         },
-        5
+        7
       )
       .to(
         sectionsRef.current[1].querySelector(`.${styles.contents_list}`),
@@ -576,7 +571,16 @@ export default function Home() {
           opacity: 0,
           duration: 1.5,
         },
-        6.5
+        8.5
+      )
+      .to(
+        win.particleSystem.animatable.rotation,
+        {
+          y: 360 * (Math.PI / 180),
+          duration: 10,
+          ease: "none",
+        },
+        0
       );
 
     const partnersAnimation = gsap
@@ -636,8 +640,8 @@ export default function Home() {
           fastScrollEnd: true,
           trigger: sectionsRef.current[4],
           scrub: SCRUB,
-          start: "top 75%",
-          end: "50% 90%",
+          // start: "top 75%",
+          // end: "50% 90%",
         },
       })
       .to(
@@ -682,15 +686,13 @@ export default function Home() {
         z: 15 * (Math.PI / 180),
         x: 40 * (Math.PI / 180),
       });
+
     const keyItemsAnimation2 = gsap
       .timeline({
         scrollTrigger: {
           fastScrollEnd: true,
           trigger: sectionsRef.current[5],
           scrub: SCRUB,
-          // start: "50% bottom",
-          start: "top 75%",
-          end: "50% 90%",
         },
       })
       .to(win.particleSystem?.animatable.position, {
@@ -699,7 +701,22 @@ export default function Home() {
       .to(win.particleSystem?.animatable.rotation, {
         z: -15 * (Math.PI / 180),
         x: 40 * (Math.PI / 180),
-      });
+      })
+      .from(
+        sectionsRef.current[5].querySelector(`.${styles.contents_data}`) || {},
+        {
+          opacity: 0,
+          duration: 0.25,
+        },
+        0.25
+      )
+      .to(
+        sectionsRef.current[5].querySelector(`.${styles.contents_data}`) || {},
+        {
+          opacity: 0,
+        },
+        0.5
+      );
 
     const keyItemsAnimation3 = gsap
       .timeline({
@@ -707,8 +724,6 @@ export default function Home() {
           fastScrollEnd: true,
           trigger: sectionsRef.current[6],
           scrub: SCRUB,
-          start: "top 75%",
-          end: "50% 90%",
         },
       })
 
@@ -718,16 +733,28 @@ export default function Home() {
       .to(win.particleSystem?.animatable.rotation, {
         z: 15 * (Math.PI / 180),
         x: 40 * (Math.PI / 180),
-      });
+      })
+      .from(
+        sectionsRef.current[6].querySelector(`.${styles.contents_data}`) || {},
+        {
+          opacity: 0,
+          duration: 0.25,
+        },
+        0.25
+      )
+      .to(
+        sectionsRef.current[6].querySelector(`.${styles.contents_data}`) || {},
+        {
+          opacity: 0,
+        },
+        0.5
+      );
     const keyItemsAnimation4 = gsap
       .timeline({
         scrollTrigger: {
           fastScrollEnd: true,
           trigger: sectionsRef.current[7],
           scrub: SCRUB,
-          // start: "50% bottom",
-          start: "top 75%",
-          end: "50% 90%",
         },
       })
       .to(win.particleSystem?.animatable.position, {
@@ -736,15 +763,29 @@ export default function Home() {
       .to(win.particleSystem?.animatable.rotation, {
         z: -15 * (Math.PI / 180),
         x: 40 * (Math.PI / 180),
-      });
+      })
+      .from(
+        sectionsRef.current[7].querySelector(`.${styles.contents_data}`) || {},
+        {
+          opacity: 0,
+          duration: 0.25,
+        },
+        0.25
+      )
+      .to(
+        sectionsRef.current[7].querySelector(`.${styles.contents_data}`) || {},
+        {
+          opacity: 0,
+        },
+        0.5
+      );
     const keyItemsAnimation5 = gsap
       .timeline({
         scrollTrigger: {
           fastScrollEnd: true,
           trigger: sectionsRef.current[8],
           scrub: SCRUB,
-          start: "top 75%",
-          end: "50% 90%",
+          end: "90% 50%",
         },
       })
 
@@ -754,13 +795,29 @@ export default function Home() {
       .to(win.particleSystem?.animatable.rotation, {
         z: 15 * (Math.PI / 180),
         x: 40 * (Math.PI / 180),
-      });
+      })
+      .from(
+        sectionsRef.current[8].querySelector(`.${styles.contents_data}`) || {},
+        {
+          opacity: 0,
+          duration: 0.25,
+        },
+        0.25
+      )
+      .to(
+        sectionsRef.current[8].querySelector(`.${styles.contents_data}`) || {},
+        {
+          opacity: 0,
+        },
+        0.75
+      );
     const vision = gsap
       .timeline({
         scrollTrigger: {
           fastScrollEnd: true,
           trigger: sectionsRef.current[9],
           scrub: SCRUB,
+          start: "top 90%",
           end: "50% 50%",
         },
       })
@@ -779,7 +836,7 @@ export default function Home() {
           x: 5 * (Math.PI / 180),
           y: 380 * (Math.PI / 180),
         },
-        0
+        1
       )
       .to(
         win.particleSystem.animatable.influences,
@@ -793,6 +850,7 @@ export default function Home() {
         },
         0
       );
+
     const footer = gsap
       .timeline({
         scrollTrigger: {
@@ -858,7 +916,20 @@ export default function Home() {
       heroTitleRef.current &&
       heroContentsListRef.current
     ) {
-      const timeline = gsap
+      const win = window as Window & {
+        particleSystem?: {
+          animatable: {
+            rotation: { x: number; y: number; z: number };
+            position: { x: number; y: number; z: number };
+            scale: { x: number; y: number; z: number };
+            influences: number[];
+          };
+        };
+      };
+
+      if (!win.particleSystem) return;
+
+      const heroAnimation = gsap
         .timeline({
           scrollTrigger: {
             trigger: sectionsRef.current[0],
@@ -886,6 +957,573 @@ export default function Home() {
             stagger: 0.25,
           },
           0.25
+        )
+        .to(
+          win.particleSystem.animatable.rotation,
+          {
+            y: 180 * (Math.PI / 180), // y축으로 360도 회전
+            duration: 1,
+          },
+          0
+        );
+
+      const aboutAnimation = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[1],
+            end: "+=700%",
+            pin: true,
+            scrub: SCRUB,
+          },
+        })
+        .to(
+          win.particleSystem.animatable.rotation,
+          {
+            y: 360 * (Math.PI / 180),
+            duration: 8,
+          },
+          0
+        )
+        .to(
+          win.particleSystem.animatable.scale,
+          {
+            x: 5,
+            y: 5,
+            z: 5,
+            duration: 5,
+          },
+          0
+        )
+
+        .to(
+          win.particleSystem.animatable.influences,
+          {
+            "0": 0,
+            "1": 0,
+            "2": 1,
+            "3": 0,
+            "4": 0,
+            duration: 5,
+          },
+          0
+        )
+        .to(window.postProcessing?.bloom || {}, {
+          intensity: 0.0,
+          threshold: 0,
+          duration: 1.0,
+        })
+        .from(
+          sectionsRef.current[1].querySelector(`.${styles.title}`),
+          {
+            opacity: 0,
+          },
+          0
+        )
+
+        .to(
+          sectionsRef.current[1].querySelector(`.${styles.title}`),
+          {
+            opacity: 0,
+          },
+          0.5
+        )
+
+        .from(
+          sectionsRef.current[1].querySelector(
+            `.${styles.contents_text} span:first-child`
+          ),
+          {
+            opacity: 0,
+          },
+          1
+        )
+        .to(
+          sectionsRef.current[1].querySelector(
+            `.${styles.contents_text} span:first-child`
+          ),
+          {
+            opacity: 0,
+          },
+          1.5
+        )
+        .from(
+          sectionsRef.current[1].querySelector(
+            `.${styles.contents_text} span:nth-child(2)`
+          ),
+          {
+            opacity: 0,
+          },
+          2
+        )
+        .to(
+          sectionsRef.current[1].querySelector(
+            `.${styles.contents_text} span:nth-child(2)`
+          ),
+          {
+            opacity: 0,
+          },
+          2.5
+        )
+        .from(
+          sectionsRef.current[1].querySelector(
+            `.${styles.contents_text} span:nth-child(3)`
+          ),
+          {
+            opacity: 0,
+          },
+          3
+        )
+        .to(
+          sectionsRef.current[1].querySelector(
+            `.${styles.contents_text} span:nth-child(3)`
+          ),
+          {
+            opacity: 0,
+          },
+          3.5
+        )
+        .from(
+          sectionsRef.current[1].querySelector(
+            `.${styles.contents_text} span:nth-child(4)`
+          ),
+          {
+            opacity: 0,
+          },
+          4
+        )
+        .to(
+          sectionsRef.current[1].querySelector(
+            `.${styles.contents_text} span:nth-child(4)`
+          ),
+          {
+            opacity: 0,
+          },
+          4.5
+        )
+        .to(
+          win.particleSystem.animatable.scale,
+          {
+            x: 1,
+            y: 1,
+            z: 1,
+            duration: 2,
+          },
+          4.5
+        )
+
+        .to(
+          win.particleSystem.animatable.influences,
+          {
+            "0": 0,
+            "1": 1,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            duration: 2,
+          },
+          4.5
+        )
+        .from(
+          sectionsRef.current[1].querySelectorAll(`.${styles.contents_list}`),
+          {
+            opacity: 0,
+            duration: 1.5,
+          },
+          5
+        )
+        .to(
+          sectionsRef.current[1].querySelector(`.${styles.contents_list}`),
+          {
+            opacity: 0,
+            duration: 1.5,
+          },
+          6.5
+        );
+
+      const partnersAnimation = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[2],
+            pin: true,
+            end: "+=200%",
+            scrub: SCRUB,
+          },
+        })
+
+        .from(sectionsRef.current[2], {
+          opacity: 0,
+        })
+        .to(cameraRef.current?.position || {}, {
+          z: 5,
+          duration: 0.5,
+        })
+        .to(
+          win.particleSystem.animatable.influences,
+          {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 1,
+            "4": 0,
+            duration: 1.5,
+          },
+          0
+        )
+
+        .to(
+          win.particleSystem.animatable.position,
+          {
+            y: -3,
+            z: 5,
+            duration: 2,
+          },
+          0
+        )
+        .to(
+          win.particleSystem.animatable.scale,
+          {
+            x: 3,
+            z: 3,
+            y: 3,
+            duration: 1,
+          },
+          0
+        );
+
+      const keyItemsAnimation1 = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[4],
+            scrub: SCRUB,
+            // start: "25% bottom",
+            // end: "50% 60%",
+          },
+        })
+        .to(
+          win.particleSystem.animatable.scale,
+          {
+            x: 1,
+            y: 1,
+            z: 1,
+          },
+          0
+        )
+
+        .to(
+          cameraRef.current?.position || {},
+          {
+            z: 20,
+          },
+          0
+        )
+        .to(
+          win.particleSystem.animatable.position,
+          {
+            y: 3,
+            x: 0,
+            z: 0,
+          },
+          0
+        )
+
+        .to(
+          win.particleSystem.animatable.influences,
+          {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+          },
+          0
+        )
+        .to(win.particleSystem?.animatable.rotation, {
+          z: 15 * (Math.PI / 180),
+          x: 40 * (Math.PI / 180),
+        })
+        .from(
+          sectionsRef.current[4].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+            duration: 0.25,
+          },
+          0.25
+        )
+        .to(
+          sectionsRef.current[4].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+          },
+          0.5
+        );
+
+      const keyItemsAnimation2 = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[5],
+            scrub: SCRUB,
+
+            start: "top 90%",
+          },
+        })
+        .from(
+          sectionsRef.current[5].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+            duration: 0.25,
+          },
+          0.25
+        )
+        .to(
+          sectionsRef.current[5].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+          },
+          0.5
+        )
+
+        .to(
+          win.particleSystem?.animatable.position,
+          {
+            x: 0,
+            z: 10,
+            y: 0,
+          },
+          0
+        )
+        .to(
+          win.particleSystem?.animatable.rotation,
+          {
+            z: -15 * (Math.PI / 180),
+            x: 40 * (Math.PI / 180),
+          },
+          0
+        );
+
+      const keyItemsAnimation3 = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[6],
+            scrub: SCRUB,
+            start: "top 90%",
+          },
+        })
+        .from(
+          sectionsRef.current[6].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+            duration: 0.25,
+          },
+          0.25
+        )
+        .to(
+          sectionsRef.current[6].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+          },
+          0.5
+        )
+
+        .to(
+          win.particleSystem?.animatable.position,
+          {
+            x: 3,
+            z: 0,
+            y: 3,
+          },
+          0
+        )
+
+        .to(
+          win.particleSystem?.animatable.rotation,
+          {
+            z: 15 * (Math.PI / 180),
+            x: 40 * (Math.PI / 180),
+          },
+          0
+        );
+      const keyItemsAnimation4 = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[7],
+            scrub: SCRUB,
+            start: "top 90%",
+          },
+        })
+        .from(
+          sectionsRef.current[7].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+            duration: 0.25,
+          },
+          0.25
+        )
+        .to(
+          sectionsRef.current[7].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+          },
+          0.5
+        )
+
+        .to(
+          win.particleSystem?.animatable.position,
+          {
+            x: -2,
+          },
+          0
+        )
+        .to(
+          win.particleSystem?.animatable.rotation,
+          {
+            z: -25 * (Math.PI / 180),
+            x: 40 * (Math.PI / 180),
+          },
+          0
+        );
+      const keyItemsAnimation5 = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[8],
+            scrub: SCRUB,
+            // start: "top 90%",
+            end: "90% 50%",
+          },
+        })
+        .from(
+          sectionsRef.current[8].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+            duration: 0.25,
+          },
+          0.25
+        )
+        .to(
+          sectionsRef.current[8].querySelector(`.${styles.contents_data}`) ||
+            {},
+          {
+            opacity: 0,
+          },
+          0.5
+        )
+
+        .to(
+          win.particleSystem?.animatable.position,
+          {
+            x: 0,
+          },
+          0
+        )
+        .to(
+          win.particleSystem?.animatable.rotation,
+          {
+            z: 15 * (Math.PI / 180),
+            x: 40 * (Math.PI / 180),
+          },
+          0
+        );
+
+      const vision = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[9],
+            scrub: SCRUB,
+            end: "50% 50%",
+          },
+        })
+
+        .to(
+          win.particleSystem?.animatable.position,
+          {
+            x: 0,
+            y: 0,
+          },
+          0
+        )
+        .to(
+          win.particleSystem?.animatable.rotation,
+          {
+            z: -10 * (Math.PI / 180),
+            x: 5 * (Math.PI / 180),
+            y: 380 * (Math.PI / 180),
+          },
+          0
+        )
+        .to(
+          win.particleSystem.animatable.influences,
+          {
+            "0": 1,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            duration: 1,
+          },
+          0
+        );
+      const footer = gsap
+        .timeline({
+          scrollTrigger: {
+            fastScrollEnd: true,
+            trigger: sectionsRef.current[10],
+            scrub: SCRUB,
+
+            start: "25% 50%",
+            end: "bottom bottom",
+          },
+        })
+
+        .to(
+          win.particleSystem.animatable.influences,
+          {
+            "0": 0,
+            "1": 0,
+            "2": 1,
+            "3": 0,
+            "4": 0,
+          },
+          0
+        )
+        .to(
+          win.particleSystem?.animatable.rotation,
+          {
+            z: 0,
+            x: 0,
+          },
+          0
+        )
+        .to(
+          win.particleSystem?.animatable.position,
+          {
+            x: 0,
+          },
+          0
+        )
+        .to(
+          win.particleSystem?.animatable.scale,
+          {
+            x: 7,
+            y: 7,
+            z: 7,
+          },
+          0
         );
     }
 
@@ -917,7 +1555,7 @@ export default function Home() {
           top: 0,
           left: 0,
           width: "100vw",
-          height: "calc(var(--vh, 1vh) * 100)",
+          height: "100vh",
           zIndex: 0,
         }}
       >
