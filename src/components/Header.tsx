@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Button from "./Button";
-import styles from "./Header.module.scss";
+import styles from "./header.module.scss";
 
 const Header = () => {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
