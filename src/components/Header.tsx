@@ -53,7 +53,7 @@ const Header = () => {
           {/* Logo Section */}
           <div className={styles.logo_section}>
             <img
-              src="/image/logo.png"
+              src={`${import.meta.env.BASE_URL}image/logo.png`}
               alt="Crypto Fellas Logo"
               className={styles.logo_icon}
               loading="eager"
@@ -90,17 +90,26 @@ const Header = () => {
                 <div className={styles.button_group}>
                   <Button>
                     <a href="https://www.mggarena.com" target="_blank">
-                      <img src="/image/mega_arena.png" alt="MGG ARENA" />
+                      <img
+                        src={`${import.meta.env.BASE_URL}image/mega_arena.png`}
+                        alt="MGG ARENA"
+                      />
                     </a>
                   </Button>
                   <Button>
                     <a href="https://mining.mimbonode.io/login" target="_blank">
-                      <img src="/image/mimbo.png" alt="MIMBO NODE" />
+                      <img
+                        src={`${import.meta.env.BASE_URL}image/mimbo.png`}
+                        alt="MIMBO NODE"
+                      />
                     </a>
                   </Button>
                   <Button>
                     <a href="https://www.fellascard.com/login" target="_blank">
-                      <img src="/image/fellascard.png" alt="FELLAS CARD" />
+                      <img
+                        src={`${import.meta.env.BASE_URL}image/fellascard.png`}
+                        alt="FELLAS CARD"
+                      />
                     </a>
                   </Button>
                 </div>
@@ -159,17 +168,26 @@ const Header = () => {
             <div className={styles.mobile_button_group}>
               <Button>
                 <a href="https://www.mggarena.com" target="_blank">
-                  <img src="/image/mega_arena.png" alt="MGG ARENA" />
+                  <img
+                    src={`${import.meta.env.BASE_URL}image/mega_arena.png`}
+                    alt="MGG ARENA"
+                  />
                 </a>
               </Button>
               <Button>
                 <a href="https://mining.mimbonode.io/login" target="_blank">
-                  <img src="/image/mimbo.png" alt="MIMBO NODE" />
+                  <img
+                    src={`${import.meta.env.BASE_URL}image/mimbo.png`}
+                    alt="MIMBO NODE"
+                  />
                 </a>
               </Button>
               <Button>
                 <a href="https://www.fellascard.com/login" target="_blank">
-                  <img src="/image/fellascard.png" alt="FELLAS CARD" />
+                  <img
+                    src={`${import.meta.env.BASE_URL}image/fellascard.png`}
+                    alt="FELLAS CARD"
+                  />
                 </a>
               </Button>
             </div>

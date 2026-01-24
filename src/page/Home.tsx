@@ -1694,7 +1694,12 @@ export default function Home() {
               <ul className={styles.contents_list}>
                 <li>
                   <div className={styles.contents_list_item}>
-                    <img src="/image/about/about_card1.webp" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/about/about_card1.webp`}
+                      alt=""
+                    />
                   </div>
                   <div className={styles.contents_list_item_text}>
                     <strong>MIMBO NODE</strong>
@@ -1706,7 +1711,12 @@ export default function Home() {
                 </li>
                 <li>
                   <div className={styles.contents_list_item}>
-                    <img src="/image/about/about_card2.webp" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/about/about_card2.webp`}
+                      alt=""
+                    />
                   </div>
                   <div className={styles.contents_list_item_text}>
                     <strong>MGG Arena</strong>
@@ -1718,7 +1728,12 @@ export default function Home() {
                 </li>
                 <li>
                   <div className={styles.contents_list_item}>
-                    <img src="/image/about/about_card3.webp" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/about/about_card3.webp`}
+                      alt=""
+                    />
                   </div>
                   <div className={styles.contents_list_item_text}>
                     <strong>FELLAS Card</strong>
@@ -1760,41 +1775,101 @@ export default function Home() {
                   }}
                 >
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   {/* 중복 추가로 무한 스크롤 효과 */}
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                 </ul>
               </div>
@@ -1810,71 +1885,181 @@ export default function Home() {
                   }}
                 >
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   {/* 중복 추가로 무한 스크롤 효과 */}
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                   <li>
-                    <img src="/image/partners/partner.png" alt="" />
+                    <img
+                      src={`${
+                        import.meta.env.BASE_URL
+                      }image/partners/partner.png`}
+                      alt=""
+                    />
                   </li>
                 </ul>
               </div>
@@ -2052,17 +2237,26 @@ export default function Home() {
             <div className={styles.contents}>
               <Button>
                 <a href="https://www.mggarena.com" target="_blank">
-                  <img src="/image/mega_arena.png" alt="MGG ARENA" />
+                  <img
+                    src={`${import.meta.env.BASE_URL}image/mega_arena.png`}
+                    alt="MGG ARENA"
+                  />
                 </a>
               </Button>
               <Button>
                 <a href="https://mining.mimbonode.io/login" target="_blank">
-                  <img src="/image/mimbo.png" alt="MIMBO NODE" />
+                  <img
+                    src={`${import.meta.env.BASE_URL}image/mimbo.png`}
+                    alt="MIMBO NODE"
+                  />
                 </a>
               </Button>
               <Button>
                 <a href="https://www.fellascard.com/login" target="_blank">
-                  <img src="/image/fellascard.png" alt="FELLAS CARD" />
+                  <img
+                    src={`${import.meta.env.BASE_URL}image/fellascard.png`}
+                    alt="FELLAS CARD"
+                  />
                 </a>
               </Button>
             </div>

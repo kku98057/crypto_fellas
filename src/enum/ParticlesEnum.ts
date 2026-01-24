@@ -58,7 +58,7 @@ export const TEXTURE_PATHS = [
   //   "/image/investors/3.png",
   //   "/image/investors/4.png",
   //   "/image/investors/5.png",
-  "/image/triangle_sample.png",
+  `${import.meta.env.BASE_URL}image/triangle_sample.png`,
 ];
 
 /**
@@ -69,7 +69,7 @@ export const PARTICLE_CONFIG = {
 };
 
 export const PARTICLE_MODEL_PATH = [
-  "/object/game_pad.glb", // gamepad 모델
-  "/object/model_2.glb", // card 모델
-  "/object/model_3.glb", // saturn 모델
+  `${import.meta.env.BASE_URL}object/game_pad.glb`, // gamepad 모델
+  `${import.meta.env.BASE_URL}object/model_2.glb`, // card 모델
+  `${import.meta.env.BASE_URL}object/model_3.glb`, // saturn 모델
 ];
