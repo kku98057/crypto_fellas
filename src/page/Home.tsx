@@ -542,20 +542,20 @@ export default function Home() {
           z: 1,
           duration: 2,
         },
-        6.5
+        4
       )
 
       .to(
         win.particleSystem.animatable.influences,
         {
           "0": 0,
-          "1": 1,
+          "1": 0,
           "2": 0,
           "3": 0,
           "4": 0,
           duration: 2,
         },
-        6.5
+        4
       )
       .from(
         sectionsRef.current[1].querySelector(`.${styles.contents_list}`),
@@ -963,6 +963,7 @@ export default function Home() {
           {
             y: 180 * (Math.PI / 180), // y축으로 360도 회전
             duration: 1,
+            ease: "none",
           },
           0
         );
@@ -982,6 +983,7 @@ export default function Home() {
           {
             y: 360 * (Math.PI / 180),
             duration: 8,
+            ease: "none",
           },
           0
         )
@@ -991,7 +993,7 @@ export default function Home() {
             x: 5,
             y: 5,
             z: 5,
-            duration: 5,
+            duration: 2,
           },
           0
         )
@@ -1004,7 +1006,7 @@ export default function Home() {
             "2": 1,
             "3": 0,
             "4": 0,
-            duration: 5,
+            duration: 2,
           },
           0
         )
@@ -1109,20 +1111,19 @@ export default function Home() {
             z: 1,
             duration: 2,
           },
-          4.5
+          2.5
         )
-
         .to(
           win.particleSystem.animatable.influences,
           {
             "0": 0,
-            "1": 1,
+            "1": 0,
             "2": 0,
             "3": 0,
             "4": 0,
             duration: 2,
           },
-          4.5
+          2.5
         )
         .from(
           sectionsRef.current[1].querySelectorAll(`.${styles.contents_list}`),
