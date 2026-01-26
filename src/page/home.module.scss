@@ -250,16 +250,6 @@ section {
         filter: brightness(1.1);
       }
     }
-
-    // JavaScript로 애니메이션 제어하므로 CSS 애니메이션 제거
-    &.slide_left {
-      // JavaScript로 transform 제어
-    }
-
-    // JavaScript로 애니메이션 제어하므로 CSS 애니메이션 제거
-    &.slide_right {
-      // JavaScript로 transform 제어
-    }
   }
 }
 
