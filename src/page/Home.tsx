@@ -390,6 +390,43 @@ export default function Home() {
       });
     }
 
+    // contents_list 애니메이션
+    if (heroContentsListRef.current) {
+      // contents_list 전체에 from 애니메이션 적용
+      gsap.from(heroContentsListRef.current, {
+        yPercent: 20,
+        opacity: 0,
+        duration: 0.8,
+        delay: 1,
+        ease: "power4.out",
+      });
+
+      // contents_list 숫자 카운팅 애니메이션
+      const listItems =
+        heroContentsListRef.current.querySelectorAll("li strong");
+      const targetValues = [22462, 1432714, 200000000]; // 목표 숫자 값들
+
+      listItems.forEach((item, index) => {
+        const targetValue = targetValues[index];
+        if (targetValue !== undefined) {
+          const obj = { value: 0 };
+          gsap.to(obj, {
+            value: targetValue,
+            duration: 2,
+            delay: 1 + index * 0.2, // 각 항목마다 0.2초씩 지연
+            ease: "power2.out",
+            onUpdate: () => {
+              // 숫자 포맷팅 (콤마 추가)
+              const formatted = Math.floor(obj.value).toLocaleString();
+              if (item) {
+                item.textContent = formatted;
+              }
+            },
+          });
+        }
+      });
+    }
+
     const heroAnimation = gsap
       .timeline({
         scrollTrigger: {
@@ -640,8 +677,8 @@ export default function Home() {
           fastScrollEnd: true,
           trigger: sectionsRef.current[4],
           scrub: SCRUB,
-          // start: "top 75%",
-          // end: "50% 90%",
+          start: "top 90%",
+          markers: true,
         },
       })
       .to(
@@ -679,6 +716,7 @@ export default function Home() {
           "2": 0,
           "3": 0,
           "4": 0,
+          duration: 0.25,
         },
         0
       )
@@ -690,18 +728,27 @@ export default function Home() {
     const keyItemsAnimation2 = gsap
       .timeline({
         scrollTrigger: {
-          fastScrollEnd: true,
           trigger: sectionsRef.current[5],
           scrub: SCRUB,
+          fastScrollEnd: true,
+          start: "10% 90%",
         },
       })
-      .to(win.particleSystem?.animatable.position, {
-        x: -7,
-      })
-      .to(win.particleSystem?.animatable.rotation, {
-        z: -15 * (Math.PI / 180),
-        x: 40 * (Math.PI / 180),
-      })
+      .to(
+        win.particleSystem?.animatable.position,
+        {
+          x: -7,
+        },
+        0
+      )
+      .to(
+        win.particleSystem?.animatable.rotation,
+        {
+          z: -15 * (Math.PI / 180),
+          x: 40 * (Math.PI / 180),
+        },
+        0.25
+      )
       .from(
         sectionsRef.current[5].querySelector(`.${styles.contents_data}`) || {},
         {
@@ -721,19 +768,50 @@ export default function Home() {
     const keyItemsAnimation3 = gsap
       .timeline({
         scrollTrigger: {
-          fastScrollEnd: true,
           trigger: sectionsRef.current[6],
           scrub: SCRUB,
+          start: "10% 90%",
+
+          fastScrollEnd: true,
         },
       })
-
-      .to(win.particleSystem?.animatable.position, {
-        x: 7,
-      })
-      .to(win.particleSystem?.animatable.rotation, {
-        z: 15 * (Math.PI / 180),
-        x: 40 * (Math.PI / 180),
-      })
+      .to(
+        win.particleSystem.animatable.influences,
+        {
+          "0": 1,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          duration: 0.25,
+        },
+        0
+      )
+      .to(
+        win.particleSystem?.animatable.position,
+        {
+          x: 7,
+          duration: 0.25,
+        },
+        0
+      )
+      // .to(
+      //   win.particleSystem?.animatable.rotation,
+      //   {
+      //     z: -10 * (Math.PI / 180),
+      //     x: 30 * (Math.PI / 180),
+      //     duration: 0.25,
+      //   },
+      //   0
+      // )
+      .to(
+        cameraRef.current?.position || {},
+        {
+          x: -20 * (Math.PI / 180),
+          duration: 0.25,
+        },
+        0
+      )
       .from(
         sectionsRef.current[6].querySelector(`.${styles.contents_data}`) || {},
         {
@@ -752,17 +830,19 @@ export default function Home() {
     const keyItemsAnimation4 = gsap
       .timeline({
         scrollTrigger: {
-          fastScrollEnd: true,
           trigger: sectionsRef.current[7],
           scrub: SCRUB,
+          start: "10% 90%",
+
+          fastScrollEnd: true,
         },
       })
       .to(win.particleSystem?.animatable.position, {
         x: -7,
       })
       .to(win.particleSystem?.animatable.rotation, {
-        z: -15 * (Math.PI / 180),
-        x: 40 * (Math.PI / 180),
+        z: 15 * (Math.PI / 180),
+        x: 0 * (Math.PI / 180),
       })
       .from(
         sectionsRef.current[7].querySelector(`.${styles.contents_data}`) || {},
@@ -782,20 +862,24 @@ export default function Home() {
     const keyItemsAnimation5 = gsap
       .timeline({
         scrollTrigger: {
-          fastScrollEnd: true,
           trigger: sectionsRef.current[8],
           scrub: SCRUB,
           end: "90% 50%",
+          fastScrollEnd: true,
         },
       })
 
       .to(win.particleSystem?.animatable.position, {
         x: 7,
       })
-      .to(win.particleSystem?.animatable.rotation, {
-        z: 15 * (Math.PI / 180),
-        x: 40 * (Math.PI / 180),
-      })
+      .to(
+        cameraRef.current?.position || {},
+        {
+          x: 0 * (Math.PI / 180),
+          duration: 0.25,
+        },
+        0
+      )
       .from(
         sectionsRef.current[8].querySelector(`.${styles.contents_data}`) || {},
         {
@@ -837,18 +921,6 @@ export default function Home() {
           y: 380 * (Math.PI / 180),
         },
         1
-      )
-      .to(
-        win.particleSystem.animatable.influences,
-        {
-          "0": 1,
-          "1": 0,
-          "2": 0,
-          "3": 0,
-          "4": 0,
-          duration: 1,
-        },
-        0
       );
 
     const footer = gsap
@@ -928,6 +1000,33 @@ export default function Home() {
       };
 
       if (!win.particleSystem) return;
+      // contents_list 숫자 카운팅 애니메이션
+      const listItems =
+        heroContentsListRef.current.querySelectorAll("li strong");
+      const targetValues = [22462, 1432714, 200000000]; // 목표 숫자 값들
+
+      // 카운팅 애니메이션 시작 함수
+      const startCounting = () => {
+        listItems.forEach((item, index) => {
+          const targetValue = targetValues[index];
+          if (targetValue !== undefined && item) {
+            const obj = { value: 0 };
+            gsap.to(obj, {
+              value: targetValue,
+              duration: 2,
+              delay: index * 0.2, // 각 항목마다 0.2초씩 지연
+              ease: "power2.out",
+              onUpdate: () => {
+                // 숫자 포맷팅 (콤마 추가)
+                const formatted = Math.floor(obj.value).toLocaleString();
+                if (item) {
+                  item.textContent = formatted;
+                }
+              },
+            });
+          }
+        });
+      };
 
       const heroAnimation = gsap
         .timeline({
@@ -950,14 +1049,20 @@ export default function Home() {
           },
           0.25
         )
+        .from(heroContentsListRef.current, {
+          yPercent: 20,
+          opacity: 0,
+        })
         .from(
           heroContentsListRef.current.querySelectorAll("li"),
           {
             opacity: 0,
             stagger: 0.25,
+            onStart: startCounting,
           },
           0.25
         )
+
         .to(
           win.particleSystem.animatable.rotation,
           {
@@ -1318,6 +1423,18 @@ export default function Home() {
             start: "top 90%",
           },
         })
+        .to(
+          win.particleSystem.animatable.influences,
+          {
+            "0": 1,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            duration: 0.5,
+          },
+          0
+        )
         .from(
           sectionsRef.current[6].querySelector(`.${styles.contents_data}`) ||
             {},
@@ -1363,6 +1480,7 @@ export default function Home() {
             start: "top 90%",
           },
         })
+
         .from(
           sectionsRef.current[7].querySelector(`.${styles.contents_data}`) ||
             {},
@@ -1391,8 +1509,8 @@ export default function Home() {
         .to(
           win.particleSystem?.animatable.rotation,
           {
-            z: -25 * (Math.PI / 180),
-            x: 40 * (Math.PI / 180),
+            z: 0 * (Math.PI / 180),
+            x: 10 * (Math.PI / 180),
           },
           0
         );
@@ -1466,19 +1584,8 @@ export default function Home() {
             y: 380 * (Math.PI / 180),
           },
           0
-        )
-        .to(
-          win.particleSystem.animatable.influences,
-          {
-            "0": 1,
-            "1": 0,
-            "2": 0,
-            "3": 0,
-            "4": 0,
-            duration: 1,
-          },
-          0
         );
+
       const footer = gsap
         .timeline({
           scrollTrigger: {
@@ -1635,15 +1742,15 @@ export default function Home() {
               </p>
               <ul className={styles.contents_list} ref={heroContentsListRef}>
                 <li>
-                  <strong>22,462</strong>
+                  <strong>0</strong>
                   <span>HOLDERS</span>
                 </li>
                 <li>
-                  <strong>1,432,714</strong>
+                  <strong>0</strong>
                   <span>TRANSACTIONS</span>
                 </li>
                 <li>
-                  <strong>200,000,000</strong>
+                  <strong>0</strong>
                   <span>TOKENS BURNED</span>
                 </li>
               </ul>
@@ -1670,7 +1777,7 @@ export default function Home() {
               <div className={styles.contents_text}>
                 <p>
                   <span>
-                    The MGG Token was born from Crypto Palace with the mission
+                    The MGG Token was born from Crypto Fellas with the mission
                     to overcome speculative bubbles and build a sustainable Web3
                     economy.
                   </span>
@@ -1681,7 +1788,7 @@ export default function Home() {
                   </span>
 
                   <span>
-                    We have leveraged the Palace Card to grant MGG value a new
+                    We have leveraged the Fellas Card to grant MGG value a new
                     dimension of utility in the real world. The vision of MGG is
                     now to continuously expand and evolve this innovative
                     connection into an integrated digital economic zone.
@@ -2133,7 +2240,7 @@ export default function Home() {
                     Connection Medium
                   </h3>
                   <p>
-                    The Palace Card is the critical medium that links MGG value
+                    The Fellas Card is the critical medium that links MGG value
                     to the real world. It maximizes the utility of digital
                     value, expanding the scope of the MGG ecosystem's worth.
                   </p>
