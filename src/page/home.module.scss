@@ -148,13 +148,14 @@ section {
       li {
         display: flex;
         flex-direction: column;
-        border: 0.0625rem solid #8199d3;
+        // border: 0.0625rem solid #8199d3;
         border-radius: 24px;
         align-items: center;
         flex: 1;
         justify-content: center;
         padding: 1.875rem;
         background-color: rgba(0, 0, 0, 1);
+
         .contents_list_item {
           height: 8.375rem;
           width: auto;
