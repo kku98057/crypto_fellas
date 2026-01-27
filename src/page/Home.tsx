@@ -591,7 +591,7 @@ export default function Home() {
         4
       )
       .from(
-        sectionsRef.current[1].querySelector(`.${styles.contents_list}`),
+        sectionsRef.current[1].querySelectorAll(`.${styles.contents_list} li`),
         {
           opacity: 0,
           duration: 1.5,
@@ -599,7 +599,7 @@ export default function Home() {
         7
       )
       .to(
-        sectionsRef.current[1].querySelector(`.${styles.contents_list}`),
+        sectionsRef.current[1].querySelectorAll(`.${styles.contents_list} li`),
         {
           opacity: 0,
           duration: 1.5,
@@ -1796,7 +1796,7 @@ export default function Home() {
                     <img
                       src={`${
                         import.meta.env.BASE_URL
-                      }image/about/about_card1.webp`}
+                      }image/about/about_card1.png`}
                       alt=""
                     />
                   </div>
@@ -1813,7 +1813,7 @@ export default function Home() {
                     <img
                       src={`${
                         import.meta.env.BASE_URL
-                      }image/about/about_card2.webp`}
+                      }image/about/about_card2.png`}
                       alt=""
                     />
                   </div>
@@ -1830,7 +1830,7 @@ export default function Home() {
                     <img
                       src={`${
                         import.meta.env.BASE_URL
-                      }image/about/about_card3.webp`}
+                      }image/about/about_card3.png`}
                       alt=""
                     />
                   </div>
