@@ -75,7 +75,7 @@ export default function Home() {
     useState<PostProcessingConfig>({
       bloom: {
         enabled: true, // Bloom 켜기
-        intensity: 0.7,
+        intensity: 0.5,
         threshold: 0.3, // 낮춤 (더 많은 부분이 빛남)
         smoothing: 0.025,
       },
@@ -135,10 +135,78 @@ export default function Home() {
     const leftList = leftListRef.current;
     const rightList = rightListRef.current;
 
-    // 리스트 너비 계산 (2배 복제했으므로 절반)
+    // 리스트를 두 배로 복제하는 함수
+    const duplicateListItems = (list: HTMLUListElement) => {
+      const items = Array.from(list.children) as HTMLLIElement[];
+
+      // 주석 "중복 추가로 무한 스크롤 효과" 이전까지가 첫 번째 세트
+      let firstSetEndIndex = items.length;
+      for (let i = 0; i < items.length; i++) {
+        const prevSibling = items[i].previousSibling;
+        if (prevSibling && prevSibling.nodeType === Node.COMMENT_NODE) {
+          const commentText = prevSibling.textContent?.trim();
+          if (commentText?.includes("중복 추가로 무한 스크롤 효과")) {
+            firstSetEndIndex = i;
+            break;
+          }
+        }
+      }
+
+      // 첫 번째 세트의 아이템들 복제
+      const firstSetItems = items.slice(0, firstSetEndIndex);
+
+      // 이미 복제되어 있는지 확인 (현재 아이템 개수가 첫 번째 세트의 2배인지)
+      if (items.length === firstSetItems.length * 2) {
+        return; // 이미 복제되어 있음
+      }
+
+      // 첫 번째 세트의 아이템들을 복제하여 추가
+      firstSetItems.forEach((item) => {
+        const clonedItem = item.cloneNode(true) as HTMLLIElement;
+        list.appendChild(clonedItem);
+      });
+    };
+
+    // 리스트 복제
+    duplicateListItems(leftList);
+    duplicateListItems(rightList);
+
+    // 리스트 너비 계산 (첫 번째 세트의 실제 너비 + gap)
     const updateWidths = () => {
-      const leftWidth = leftList.scrollWidth / 2;
-      const rightWidth = rightList.scrollWidth / 2;
+      const calculateSetWidth = (list: HTMLUListElement) => {
+        const items = Array.from(list.children) as HTMLLIElement[];
+        if (items.length === 0) return 0;
+
+        // 첫 번째 세트의 아이템 개수 (전체 아이템의 절반)
+        const itemCount = Math.floor(items.length / 2);
+
+        if (itemCount === 0) return list.scrollWidth / 2;
+
+        const firstItem = items[0];
+        const lastItemOfFirstSet = items[itemCount - 1];
+
+        if (!firstItem || !lastItemOfFirstSet) {
+          return list.scrollWidth / 2;
+        }
+
+        // gap 가져오기 (computed style에서)
+        const computedStyle = window.getComputedStyle(list);
+        const gapValue = computedStyle.gap || computedStyle.columnGap;
+        const gap = parseFloat(gapValue) || 0;
+
+        // 첫 번째 아이템의 시작 위치 (리스트 기준)
+        const firstItemLeft = firstItem.offsetLeft;
+        // 첫 번째 세트의 마지막 아이템의 끝 위치
+        const lastItemRight =
+          lastItemOfFirstSet.offsetLeft + lastItemOfFirstSet.offsetWidth;
+
+        // 첫 번째 아이템 시작부터 마지막 아이템 끝 + gap까지
+        // 이렇게 하면 다음 세트의 첫 번째 아이템과 자연스럽게 연결됨
+        return lastItemRight - firstItemLeft + gap;
+      };
+
+      const leftWidth = calculateSetWidth(leftList);
+      const rightWidth = calculateSetWidth(rightList);
 
       if (leftWidth > 0) leftListWidthRef.current = leftWidth;
       if (rightWidth > 0) rightListWidthRef.current = rightWidth;
@@ -1910,60 +1978,6 @@ export default function Home() {
                     />
                   </li>
                   {/* 중복 추가로 무한 스크롤 효과 */}
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/7.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/8.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/9.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/10.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/11.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/12.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/13.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/14.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/15.webp`}
-                      alt=""
-                    />
-                  </li>
                 </ul>
               </div>
               <div className={styles.partners_wrapper}>
@@ -1979,80 +1993,7 @@ export default function Home() {
                 >
                   <li>
                     <img
-                      src={`${import.meta.env.BASE_URL}image/partners/01.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/2.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/3.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/4.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/5.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/6.webp`}
-                      alt=""
-                    />
-                  </li>
-                  {/* 중복 추가로 무한 스크롤 효과 */}
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/7.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/8.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/9.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/10.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/11.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/12.webp`}
-                      alt=""
-                    />
-                  </li>
-                  <li>
-                    <img
-                      src={`${import.meta.env.BASE_URL}image/partners/13.webp`}
+                      src={`${import.meta.env.BASE_URL}image/partners/15.webp`}
                       alt=""
                     />
                   </li>
@@ -2064,10 +2005,83 @@ export default function Home() {
                   </li>
                   <li>
                     <img
-                      src={`${import.meta.env.BASE_URL}image/partners/15.webp`}
+                      src={`${import.meta.env.BASE_URL}image/partners/13.webp`}
                       alt=""
                     />
                   </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/12.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/11.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/10.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/9.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/8.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/7.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/6.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/5.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/4.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/3.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/2.webp`}
+                      alt=""
+                    />
+                  </li>
+                  <li>
+                    <img
+                      src={`${import.meta.env.BASE_URL}image/partners/01.webp`}
+                      alt=""
+                    />
+                  </li>
+                  {/* 중복 추가로 무한 스크롤 효과 */}
                 </ul>
               </div>
             </div>
