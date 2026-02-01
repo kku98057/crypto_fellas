@@ -75,7 +75,7 @@ export default function Home() {
     useState<PostProcessingConfig>({
       bloom: {
         enabled: true, // Bloom 켜기
-        intensity: 0.5,
+        intensity: 0.3,
         threshold: 0.3, // 낮춤 (더 많은 부분이 빛남)
         smoothing: 0.025,
       },
